@@ -1,4 +1,3 @@
-AI SCI
 ## aisci
 
 这个仓库用于构建一个参考 FARS 思路的多 Agent 科研系统（MVP）。

@@ -1,0 +1,20 @@
+{
+  "plan_id": "plan_sample_001",
+  "spec_id": "spec_sample_001",
+  "method_summary": "Generate synthetic linear data with noise, train sklearn LinearRegression, evaluate R-squared on test split",
+  "evaluation_protocol": "80/20 train-test split, report R-squared on test set, repeat with different noise levels if target not met",
+  "steps": [
+    {
+      "step_id": "step_1",
+      "description": "Generate synthetic dataset with sklearn.datasets.make_regression",
+      "expected_output": "X_train, X_test, y_train, y_test arrays"
+    },
+    {
+      "step_id": "step_2",
+      "description": "Train LinearRegression model and compute R-squared",
+      "expected_output": "metrics.json with r_squared value"
+    }
+  ],
+  "baseline": null,
+  "created_at": "2026-02-28T00:00:00Z"
+}

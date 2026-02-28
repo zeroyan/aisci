@@ -1,0 +1,29 @@
+{
+  "spec_id": "spec_sample_001",
+  "title": "Simple Linear Regression Accuracy Test",
+  "objective": "Train a linear regression model on synthetic data and achieve R-squared >= 0.90",
+  "hypothesis": [
+    "A linear regression model can fit the synthetic linear dataset with high accuracy"
+  ],
+  "metrics": [
+    {
+      "name": "r_squared",
+      "direction": "maximize",
+      "target": 0.90,
+      "minimum_acceptable": 0.70
+    }
+  ],
+  "constraints": {
+    "max_budget_usd": 5.0,
+    "max_runtime_hours": 0.5,
+    "max_iterations": 5,
+    "compute": "cpu"
+  },
+  "dataset_refs": [],
+  "risk_notes": ["Synthetic data only — not representative of real-world datasets"],
+  "non_goals": ["Hyperparameter tuning", "Model comparison"],
+  "status": "confirmed",
+  "created_by": "user",
+  "created_at": "2026-02-28T00:00:00Z",
+  "updated_at": "2026-02-28T00:00:00Z"
+}
