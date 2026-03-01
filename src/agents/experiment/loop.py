@@ -1,22 +1,20 @@
-"""Main experiment loop: plan -> codegen -> execute -> analyze -> decide."""
+"""Main experiment loop: plan -> tool-use agent -> decide."""
 
 from __future__ import annotations
 
 import logging
 import time
-import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
+from src.agents.experiment.tool_agent import ToolAgent
+from src.llm.client import LLMClient
+from src.sandbox.base import SandboxExecutor
 from src.schemas import CostUsage
 from src.schemas.experiment import ExperimentIteration, ExperimentRun, IterationStatus
 from src.schemas.research_spec import ExperimentPlan, ResearchSpec
-from src.schemas.sandbox_io import SandboxRequest, SandboxStatus
 from src.schemas.state import RunStatus, StopReason
-from src.agents.experiment.codegen import CodegenAgent
-from src.agents.experiment.analyzer import AnalyzerAgent
-from src.sandbox.base import SandboxExecutor
 from src.storage.artifact import ArtifactStore
-from src.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +22,7 @@ DEFAULT_CONSECUTIVE_FAILURE_LIMIT = 3
 
 
 class ExperimentLoop:
-    """Orchestrates the plan->codegen->execute->analyze->decide cycle."""
+    """Orchestrates the plan->tool-agent->decide cycle."""
 
     def __init__(
         self,
@@ -32,12 +30,13 @@ class ExperimentLoop:
         sandbox: SandboxExecutor,
         store: ArtifactStore,
         consecutive_failure_limit: int = DEFAULT_CONSECUTIVE_FAILURE_LIMIT,
+        max_turns_per_iteration: int = 20,
     ) -> None:
-        self.codegen = CodegenAgent(llm)
-        self.analyzer = AnalyzerAgent(llm)
+        self.llm = llm
         self.sandbox = sandbox
         self.store = store
         self.consecutive_failure_limit = consecutive_failure_limit
+        self.max_turns_per_iteration = max_turns_per_iteration
 
     def run(
         self,
@@ -97,13 +96,43 @@ class ExperimentLoop:
                 experiment_run.transition_to(RunStatus.TIMEOUT)
                 break
 
-            # --- Step 1: Codegen ---
-            logger.info("Iteration %d: codegen", iteration_index)
+            # --- Step 1: Tool-use agent iteration ---
+            logger.info("Iteration %d: tool-use agent", iteration_index)
             iteration_started = datetime.now(timezone.utc)
+
+            # Prepare workspace
+            workspace = (
+                Path(self.store.runs_dir)
+                / run_id
+                / "iterations"
+                / f"it_{iteration_index:04d}"
+                / "workspace"
+            )
+            workspace.mkdir(parents=True, exist_ok=True)
+
+            # Build system prompt
+            system_prompt = self._build_system_prompt(spec, plan)
+
+            # Build initial prompt
+            initial_prompt = self._build_initial_prompt(spec, plan, iterations)
+
+            # Create ToolAgent and run
+            agent = ToolAgent(
+                llm_client=self.llm,
+                sandbox=self.sandbox,
+                system_prompt=system_prompt,
+                max_turns=self.max_turns_per_iteration,
+            )
+
             try:
-                code_snapshot = self.codegen.generate(spec, plan, iterations)
+                tool_record = agent.run_iteration(
+                    run_id=run_id,
+                    iteration_index=iteration_index,
+                    workspace=workspace,
+                    initial_prompt=initial_prompt,
+                )
             except Exception as e:
-                logger.error("Codegen failed: %s", e)
+                logger.error("ToolAgent failed: %s", e)
                 consecutive_failures += 1
                 if consecutive_failures >= self.consecutive_failure_limit:
                     logger.warning(
@@ -114,57 +143,47 @@ class ExperimentLoop:
                     break
                 continue
 
-            # --- Step 2: Execute ---
-            logger.info("Iteration %d: execute", iteration_index)
-            request = SandboxRequest(
-                request_id=f"req_{uuid.uuid4().hex[:8]}",
-                run_id=run_id,
-                iteration_index=iteration_index,
-                code_snapshot=code_snapshot,
-                timeout_sec=min(
-                    int((constraints.max_runtime_hours - elapsed_hours) * 3600),
-                    1800,
-                ),
-            )
-            response = self.sandbox.execute(request)
-
-            # --- Step 3: Build iteration record ---
+            # --- Step 2: Build iteration record ---
             iteration_id = f"it_{iteration_index:04d}"
             artifact_dir = f"iterations/{iteration_id}"
 
-            # Parse metrics from sandbox output
-            metrics: dict[str, float] | None = None
-            if response.output_files.get("metrics.json"):
-                import json
-
-                try:
-                    metrics = json.loads(response.output_files["metrics.json"])
-                except Exception:
-                    pass
-
-            # Determine iteration status
-            if response.status == SandboxStatus.succeeded:
-                iter_status = IterationStatus.succeeded
+            # Determine iteration status from tool_record
+            if tool_record.status == "finished" and tool_record.finish_result:
+                if tool_record.finish_result.success:
+                    iter_status = IterationStatus.succeeded
+                else:
+                    iter_status = IterationStatus.failed
             else:
                 iter_status = IterationStatus.failed
 
-            # LLM cost for this iteration (from the codegen call)
+            # Parse metrics from workspace (if metrics.json exists)
+            metrics: dict[str, float] | None = None
+            metrics_file = workspace / "metrics.json"
+            if metrics_file.exists():
+                import json
+
+                try:
+                    metrics = json.loads(metrics_file.read_text())
+                except Exception:
+                    pass
+
+            # LLM cost for this iteration
             iter_cost = CostUsage(
-                llm_calls=self.codegen.llm.accumulated_cost.llm_calls
-                - (experiment_run.cost_usage.llm_calls),
+                llm_calls=self.llm.accumulated_cost.llm_calls
+                - experiment_run.cost_usage.llm_calls,
                 input_tokens=max(
                     0,
-                    self.codegen.llm.accumulated_cost.input_tokens
+                    self.llm.accumulated_cost.input_tokens
                     - experiment_run.cost_usage.input_tokens,
                 ),
                 output_tokens=max(
                     0,
-                    self.codegen.llm.accumulated_cost.output_tokens
+                    self.llm.accumulated_cost.output_tokens
                     - experiment_run.cost_usage.output_tokens,
                 ),
                 estimated_cost_usd=max(
                     0.0,
-                    self.codegen.llm.accumulated_cost.estimated_cost_usd
+                    self.llm.accumulated_cost.estimated_cost_usd
                     - experiment_run.cost_usage.estimated_cost_usd,
                 ),
             )
@@ -174,14 +193,14 @@ class ExperimentLoop:
                 iteration_id=iteration_id,
                 run_id=run_id,
                 index=iteration_index,
-                code_change_summary=f"Generated code with {len(code_snapshot.files)} files",
-                commands=[code_snapshot.entrypoint],
+                code_change_summary=f"Tool-use agent: {tool_record.total_turns} turns",
+                commands=[],  # No single entrypoint in tool-use mode
                 metrics=metrics,
-                resource_usage=response.resource_usage,
+                resource_usage=None,  # Tool-use doesn't have single resource usage
                 cost_usage=iter_cost,
                 status=iter_status,
-                error_summary=response.stderr[:500]
-                if iter_status == IterationStatus.failed
+                error_summary=tool_record.finish_result.failure_reason
+                if tool_record.finish_result and not tool_record.finish_result.success
                 else None,
                 artifact_dir=artifact_dir,
                 started_at=iteration_started,
@@ -190,78 +209,48 @@ class ExperimentLoop:
 
             # Save iteration artifacts
             self.store.save_json(run_id, f"{artifact_dir}/iteration.json", iteration)
-            if response.stdout:
-                self.store.save_text(
-                    run_id, f"{artifact_dir}/stdout.log", response.stdout
-                )
-            if response.stderr:
-                self.store.save_text(
-                    run_id, f"{artifact_dir}/stderr.log", response.stderr
-                )
+            self.store.save_json(run_id, f"{artifact_dir}/tool_record.json", tool_record)
 
             iterations.append(iteration)
             experiment_run.iteration_count = iteration_index
 
-            # --- Step 4: Analyze ---
+            # --- Step 3: Decide based on finish_result ---
             logger.info(
-                "Iteration %d: analyze (status=%s)", iteration_index, iter_status
+                "Iteration %d: decide (status=%s)", iteration_index, iter_status
             )
-            try:
-                decision = self.analyzer.analyze(spec, iteration, response)
-            except Exception as e:
-                logger.error("Analyzer failed: %s", e)
-                consecutive_failures += 1
-                if consecutive_failures >= self.consecutive_failure_limit:
-                    experiment_run.stop_reason = StopReason.FATAL_ERROR
-                    experiment_run.transition_to(RunStatus.FAILED)
-                    break
-                # Update cost and continue
-                experiment_run.cost_usage = self.codegen.llm.accumulated_cost
-                self.store.save_json(run_id, "run.json", experiment_run)
-                continue
-
-            # Save decision
-            self.store.save_json(run_id, f"{artifact_dir}/decision.json", decision)
 
             # Update run cost from accumulated LLM costs
-            experiment_run.cost_usage = self.codegen.llm.accumulated_cost
+            experiment_run.cost_usage = self.llm.accumulated_cost
 
-            # --- Step 5: Decide ---
-            if decision.decision == "stop":
-                logger.info("Agent decided to stop: %s", decision.stop_reason)
-                if decision.stop_reason == "goal_met":
+            # Check finish_result
+            if tool_record.finish_result:
+                if tool_record.finish_result.success:
+                    logger.info("Agent finished successfully")
                     experiment_run.stop_reason = StopReason.GOAL_MET
                     experiment_run.transition_to(RunStatus.SUCCEEDED)
-                elif decision.stop_reason == "no_progress":
-                    experiment_run.stop_reason = StopReason.NO_PROGRESS
-                    experiment_run.transition_to(RunStatus.STOPPED)
-                elif decision.stop_reason == "fatal_error":
-                    experiment_run.stop_reason = StopReason.FATAL_ERROR
-                    experiment_run.transition_to(RunStatus.FAILED)
+                    break
                 else:
-                    experiment_run.stop_reason = StopReason.NO_PROGRESS
-                    experiment_run.transition_to(RunStatus.STOPPED)
-                break
-
-            if decision.decision == "request_human":
-                logger.info("Agent requesting human intervention")
-                experiment_run.stop_reason = StopReason.FATAL_ERROR
-                experiment_run.transition_to(RunStatus.FAILED)
-                break
-
-            # decision == "continue"
-            if iter_status == IterationStatus.succeeded:
-                consecutive_failures = 0
-                # Track best iteration by metric performance
-                if metrics:
-                    self._update_best_iteration(experiment_run, iteration, spec)
+                    # Failed but finished
+                    consecutive_failures += 1
+                    if consecutive_failures >= self.consecutive_failure_limit:
+                        logger.warning("Consecutive failure limit reached")
+                        experiment_run.stop_reason = StopReason.FATAL_ERROR
+                        experiment_run.transition_to(RunStatus.FAILED)
+                        break
             else:
+                # No finish_result (timeout or error)
                 consecutive_failures += 1
                 if consecutive_failures >= self.consecutive_failure_limit:
                     logger.warning("Consecutive failure limit reached")
                     experiment_run.stop_reason = StopReason.FATAL_ERROR
                     experiment_run.transition_to(RunStatus.FAILED)
                     break
+
+            # Continue to next iteration
+            if iter_status == IterationStatus.succeeded:
+                consecutive_failures = 0
+                if metrics:
+                    self._update_best_iteration(experiment_run, iteration, spec)
 
             # Save run state
             self.store.save_json(run_id, "run.json", experiment_run)
@@ -302,3 +291,54 @@ class ExperimentLoop:
         # For now, always update to latest successful iteration with metrics
         # A more sophisticated comparison would load the best iteration's metrics
         run.best_iteration_id = iteration.iteration_id
+
+    def _build_system_prompt(self, spec: ResearchSpec, plan: ExperimentPlan) -> str:
+        """Build system prompt for ToolAgent."""
+        return f"""You are an autonomous experiment agent. Your goal is to implement and run the experiment described below.
+
+**Research Goal**: {spec.research_goal}
+
+**Experiment Plan**:
+{plan.method_summary}
+
+**Evaluation Protocol**:
+{plan.evaluation_protocol}
+
+**Available Tools**:
+- write_file(path, content): Write code/data files
+- run_bash(cmd): Execute bash commands (install deps, run scripts)
+- read_file(path): Read file contents
+- finish(summary, artifacts, success, failure_reason): Signal completion
+
+**Instructions**:
+1. Implement the experiment step by step
+2. Write all necessary code files
+3. Install dependencies if needed
+4. Run the experiment
+5. Collect metrics and save to metrics.json
+6. Call finish() with summary and results
+
+Work autonomously. If you encounter errors, debug and fix them. Call finish() when done or if unrecoverable error occurs."""
+
+    def _build_initial_prompt(
+        self,
+        spec: ResearchSpec,
+        plan: ExperimentPlan,
+        iterations: list[ExperimentIteration],
+    ) -> str:
+        """Build initial prompt for ToolAgent."""
+        if not iterations:
+            return f"""Start implementing the experiment plan.
+
+**Steps to follow**:
+{chr(10).join(f"{i+1}. {step.title}: {step.description}" for i, step in enumerate(plan.steps))}
+
+Begin with step 1."""
+        else:
+            last_iter = iterations[-1]
+            return f"""Previous iteration {last_iter.index} status: {last_iter.status}
+
+{f"Error: {last_iter.error_summary}" if last_iter.error_summary else ""}
+
+Continue the experiment. Review previous work, fix any issues, and proceed."""
+
