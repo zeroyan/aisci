@@ -10,7 +10,7 @@ from pathlib import Path
 from src.agents.experiment.tool_agent import ToolAgent
 from src.llm.client import LLMClient
 from src.sandbox.base import SandboxExecutor
-from src.schemas import CostUsage
+from src.schemas import CostUsage, ResourceUsage
 from src.schemas.experiment import ExperimentIteration, ExperimentRun, IterationStatus
 from src.schemas.research_spec import ExperimentPlan, ResearchSpec
 from src.schemas.state import RunStatus, StopReason
@@ -194,9 +194,9 @@ class ExperimentLoop:
                 run_id=run_id,
                 index=iteration_index,
                 code_change_summary=f"Tool-use agent: {tool_record.total_turns} turns",
-                commands=[],  # No single entrypoint in tool-use mode
+                commands=["tool-use-agent"],  # Placeholder for tool-use mode
                 metrics=metrics,
-                resource_usage=None,  # Tool-use doesn't have single resource usage
+                resource_usage=ResourceUsage(),  # Tool-use doesn't have single resource usage
                 cost_usage=iter_cost,
                 status=iter_status,
                 error_summary=tool_record.finish_result.failure_reason
@@ -296,7 +296,7 @@ class ExperimentLoop:
         """Build system prompt for ToolAgent."""
         return f"""You are an autonomous experiment agent. Your goal is to implement and run the experiment described below.
 
-**Research Goal**: {spec.research_goal}
+**Research Goal**: {spec.objective}
 
 **Experiment Plan**:
 {plan.method_summary}
@@ -331,7 +331,7 @@ Work autonomously. If you encounter errors, debug and fix them. Call finish() wh
             return f"""Start implementing the experiment plan.
 
 **Steps to follow**:
-{chr(10).join(f"{i+1}. {step.title}: {step.description}" for i, step in enumerate(plan.steps))}
+{chr(10).join(f"{i+1}. {step.description}" for i, step in enumerate(plan.steps))}
 
 Begin with step 1."""
         else:
