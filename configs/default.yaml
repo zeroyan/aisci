@@ -29,3 +29,9 @@ experiment:
 
 storage:
   runs_dir: "runs"
+
+knowledge:
+  scientist_dir: "scientist"  # Global knowledge base (can point to Obsidian vault)
+  search_backend: "tavily"    # "tavily" or "duckduckgo"
+  max_results_per_query: 5
+
