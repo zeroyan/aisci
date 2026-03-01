@@ -158,44 +158,11 @@ class ToolAgent:
                 logger.info(f"Turn {turn_index}/{self.max_turns}")
 
                 # Call LLM with tools
-                response = self.llm_client.llm.complete(
-                    messages=[
-                        {"role": "system", "content": self.system_prompt},
-                        *messages,
-                    ],
+                llm_response, call_cost = self.llm_client.complete_with_tools(
+                    messages=messages,
                     tools=TOOL_DEFINITIONS,
                     tool_choice="auto",
                 )
-
-                # Extract response text and cost
-                response_text, call_cost = response
-
-                # Parse litellm response structure
-                # Note: litellm.completion returns ModelResponse, we need to handle it
-                import litellm
-                llm_response = litellm.completion(
-                    model=self.llm_client.config.default_model,
-                    messages=[
-                        {"role": "system", "content": self.system_prompt},
-                        *messages,
-                    ],
-                    tools=TOOL_DEFINITIONS,
-                    tool_choice="auto",
-                    temperature=self.llm_client.config.temperature,
-                    max_tokens=self.llm_client.config.max_tokens,
-                )
-
-                # Update accumulated cost manually
-                if hasattr(llm_response, 'usage') and llm_response.usage:
-                    usage = llm_response.usage
-                    self.llm_client._accumulated_cost.llm_calls += 1
-                    self.llm_client._accumulated_cost.input_tokens += getattr(usage, 'prompt_tokens', 0)
-                    self.llm_client._accumulated_cost.output_tokens += getattr(usage, 'completion_tokens', 0)
-                    # Rough cost estimate (adjust per model)
-                    self.llm_client._accumulated_cost.estimated_cost_usd += (
-                        getattr(usage, 'prompt_tokens', 0) * 0.000003 +
-                        getattr(usage, 'completion_tokens', 0) * 0.000015
-                    )
 
                 assistant_message = llm_response.choices[0].message
                 reasoning = assistant_message.content or None

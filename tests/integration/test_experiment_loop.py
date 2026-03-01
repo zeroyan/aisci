@@ -76,7 +76,8 @@ def _mock_finish_success():
     mock_tool_call.function.arguments = '{"summary": "Test passed", "success": true, "artifacts": []}'
 
     mock_response.choices[0].message.tool_calls = [mock_tool_call]
-    return mock_response
+    mock_cost = CostUsage(llm_calls=1, input_tokens=100, output_tokens=50, estimated_cost_usd=0.01)
+    return (mock_response, mock_cost)
 
 
 def _mock_finish_failure():
@@ -93,7 +94,8 @@ def _mock_finish_failure():
     mock_tool_call.function.arguments = '{"summary": "Test failed", "success": false, "failure_reason": "error"}'
 
     mock_response.choices[0].message.tool_calls = [mock_tool_call]
-    return mock_response
+    mock_cost = CostUsage(llm_calls=1, input_tokens=100, output_tokens=50, estimated_cost_usd=0.01)
+    return (mock_response, mock_cost)
 
 
 # ---------------------------------------------------------------------------
@@ -101,21 +103,19 @@ def _mock_finish_failure():
 # ---------------------------------------------------------------------------
 
 
-@patch("src.agents.experiment.tool_agent.completion")
 def test_loop_runs_3_iterations_then_stops(
-    mock_completion: Mock,
     tmp_path: pytest.TempPathFactory,
 ) -> None:
     """Loop runs 3 iterations: first two fail, third succeeds."""
-    # Mock: first 2 iterations fail, 3rd succeeds
-    mock_completion.side_effect = [
+    llm = LLMClient(config=LLMConfig())
+    llm._accumulated_cost = CostUsage()
+
+    # Mock complete_with_tools: first 2 iterations fail, 3rd succeeds
+    llm.complete_with_tools = Mock(side_effect=[
         _mock_finish_failure(),
         _mock_finish_failure(),
         _mock_finish_success(),
-    ]
-
-    llm = LLMClient(config=LLMConfig())
-    llm._accumulated_cost = CostUsage()
+    ])
 
     sandbox = SubprocessSandbox(runs_dir=tmp_path)
     store = ArtifactStore(runs_dir=tmp_path)
@@ -130,7 +130,7 @@ def test_loop_runs_3_iterations_then_stops(
     # Assert
     assert result.iteration_count == 3
     assert result.status == "succeeded"
-    assert mock_completion.call_count == 3
+    assert llm.complete_with_tools.call_count == 3
 
     # Verify iteration.json files exist
     for idx in (1, 2, 3):
@@ -138,14 +138,10 @@ def test_loop_runs_3_iterations_then_stops(
         assert store.path_exists("run_001", f"{it_dir}/iteration.json")
 
 
-@patch("src.agents.experiment.tool_agent.completion")
 def test_loop_budget_exhausted(
-    mock_completion: Mock,
     tmp_path: pytest.TempPathFactory,
 ) -> None:
     """Loop stops with budget_exhausted when cost exceeds max_budget_usd."""
-    mock_completion.return_value = _mock_finish_failure()
-
     llm = LLMClient(config=LLMConfig())
     sandbox = SubprocessSandbox(runs_dir=tmp_path)
     store = ArtifactStore(runs_dir=tmp_path)
@@ -173,7 +169,7 @@ def test_loop_budget_exhausted(
         )
         return _mock_finish_failure()
 
-    mock_completion.side_effect = completion_with_cost_bump
+    llm.complete_with_tools = Mock(side_effect=completion_with_cost_bump)
 
     # Act
     result = loop.run(run, spec, make_plan())
@@ -183,16 +179,15 @@ def test_loop_budget_exhausted(
     assert result.iteration_count >= 1
 
 
-@patch("src.agents.experiment.tool_agent.completion")
 def test_loop_max_iterations(
-    mock_completion: Mock,
     tmp_path: pytest.TempPathFactory,
 ) -> None:
     """Loop stops after reaching max_iterations."""
-    mock_completion.return_value = _mock_finish_failure()
-
     llm = LLMClient(config=LLMConfig())
     llm._accumulated_cost = CostUsage()
+
+    # Mock complete_with_tools to always return failure
+    llm.complete_with_tools = Mock(return_value=_mock_finish_failure())
 
     sandbox = SubprocessSandbox(runs_dir=tmp_path)
     store = ArtifactStore(runs_dir=tmp_path)
@@ -218,16 +213,15 @@ def test_loop_max_iterations(
     assert result.stop_reason == "max_iterations"
 
 
-@patch("src.agents.experiment.tool_agent.completion")
 def test_consecutive_failures_trigger_stop(
-    mock_completion: Mock,
     tmp_path: pytest.TempPathFactory,
 ) -> None:
     """Loop fails after consecutive_failure_limit failures."""
-    mock_completion.return_value = _mock_finish_failure()
-
     llm = LLMClient(config=LLMConfig())
     llm._accumulated_cost = CostUsage()
+
+    # Mock complete_with_tools to always return failure
+    llm.complete_with_tools = Mock(return_value=_mock_finish_failure())
 
     sandbox = SubprocessSandbox(runs_dir=tmp_path)
     store = ArtifactStore(runs_dir=tmp_path)
@@ -247,5 +241,5 @@ def test_consecutive_failures_trigger_stop(
     # Assert
     assert result.status == "failed"
     assert result.stop_reason == "fatal_error"
-    assert mock_completion.call_count == 2
+    assert llm.complete_with_tools.call_count == 2
 

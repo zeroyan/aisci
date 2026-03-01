@@ -89,6 +89,8 @@ class LLMClient:
         messages: list[dict],
         model: str | None = None,
         system_prompt: str | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: str | None = None,
     ) -> tuple[str, CostUsage]:
         """Call LLM and return (response_text, cost_for_this_call).
 
@@ -96,13 +98,20 @@ class LLMClient:
         - Timeout: retry up to timeout_retries times
         - Rate limit: retry up to rate_limit_retries times with exponential backoff
         - On all retries exhausted for primary model: try fallback model once
+
+        Args:
+            messages: List of message dicts
+            model: Model to use (defaults to config.default_model)
+            system_prompt: Optional system prompt to prepend
+            tools: Optional list of tool definitions for function calling
+            tool_choice: Optional tool choice strategy ("auto", "required", etc.)
         """
         if system_prompt:
             messages = [{"role": "system", "content": system_prompt}, *messages]
 
         primary_model = model or self.config.default_model
         try:
-            return self._call_with_retries(primary_model, messages)
+            return self._call_with_retries(primary_model, messages, tools, tool_choice)
         except Exception as primary_err:
             logger.warning(
                 "Primary model %s failed: %s. Trying fallback %s",
@@ -111,7 +120,7 @@ class LLMClient:
                 self.config.fallback_model,
             )
             try:
-                return self._call_with_retries(self.config.fallback_model, messages)
+                return self._call_with_retries(self.config.fallback_model, messages, tools, tool_choice)
             except Exception as fallback_err:
                 raise RuntimeError(
                     f"Both primary ({primary_model}) and fallback "
@@ -120,9 +129,56 @@ class LLMClient:
                     f"Fallback: {self._fmt_exc(fallback_err)}"
                 ) from fallback_err
 
-    def _call_with_retries(
-        self, model: str, messages: list[dict]
-    ) -> tuple[str, CostUsage]:
+    def complete_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        model: str | None = None,
+        system_prompt: str | None = None,
+        tool_choice: str | None = None,
+    ) -> tuple[any, CostUsage]:
+        """Call LLM with tools and return (full_response_object, cost).
+
+        This method returns the full litellm response object to support tool calling.
+        Use this when you need access to tool_calls in the response.
+
+        Args:
+            messages: List of message dicts
+            tools: List of tool definitions for function calling
+            model: Model to use (defaults to config.default_model)
+            system_prompt: Optional system prompt to prepend
+            tool_choice: Optional tool choice strategy ("auto", "required", etc.)
+
+        Returns:
+            Tuple of (litellm_response_object, CostUsage)
+        """
+        if system_prompt:
+            messages = [{"role": "system", "content": system_prompt}, *messages]
+
+        primary_model = model or self.config.default_model
+        try:
+            return self._call_with_tools_retries(primary_model, messages, tools, tool_choice)
+        except Exception as primary_err:
+            logger.warning(
+                "Primary model %s failed: %s. Trying fallback %s",
+                primary_model,
+                self._fmt_exc(primary_err),
+                self.config.fallback_model,
+            )
+            try:
+                return self._call_with_tools_retries(self.config.fallback_model, messages, tools, tool_choice)
+            except Exception as fallback_err:
+                raise RuntimeError(
+                    f"Both primary ({primary_model}) and fallback "
+                    f"({self.config.fallback_model}) models failed. "
+                    f"Primary: {self._fmt_exc(primary_err)}, "
+                    f"Fallback: {self._fmt_exc(fallback_err)}"
+                ) from fallback_err
+
+    def _call_with_tools_retries(
+        self, model: str, messages: list[dict], tools: list[dict], tool_choice: str | None = None
+    ) -> tuple[any, CostUsage]:
+        """Call LLM with tools and retries, return (response_object, cost)."""
         last_error: Exception | None = None
         max_attempts = (
             max(self.config.timeout_retries, self.config.rate_limit_retries) + 1
@@ -133,7 +189,57 @@ class LLMClient:
 
         for _ in range(max_attempts):
             try:
-                return self._single_call(model, messages)
+                return self._single_call(model, messages, tools, tool_choice)
+            except litellm.Timeout as e:
+                timeout_attempts += 1
+                last_error = e
+                if timeout_attempts > self.config.timeout_retries:
+                    break
+                logger.warning(
+                    "Timeout on attempt %d/%d: %s",
+                    timeout_attempts,
+                    self.config.timeout_retries + 1,
+                    self._fmt_exc(e),
+                )
+                time.sleep(1)
+            except litellm.RateLimitError as e:
+                rate_limit_attempts += 1
+                last_error = e
+                if rate_limit_attempts > self.config.rate_limit_retries:
+                    break
+                backoff = 2 ** rate_limit_attempts
+                logger.warning(
+                    "Rate limit on attempt %d/%d, backoff %ds: %s",
+                    rate_limit_attempts,
+                    self.config.rate_limit_retries + 1,
+                    backoff,
+                    self._fmt_exc(e),
+                )
+                time.sleep(backoff)
+            except Exception as e:
+                last_error = e
+                break
+
+        raise last_error or RuntimeError("All retry attempts exhausted")
+
+    def _call_with_retries(
+        self, model: str, messages: list[dict], tools: list[dict] | None = None, tool_choice: str | None = None
+    ) -> tuple[str, CostUsage]:
+        """Call LLM with retries and return (content_string, cost)."""
+        last_error: Exception | None = None
+        max_attempts = (
+            max(self.config.timeout_retries, self.config.rate_limit_retries) + 1
+        )
+
+        timeout_attempts = 0
+        rate_limit_attempts = 0
+
+        for _ in range(max_attempts):
+            try:
+                response, cost = self._single_call(model, messages, tools, tool_choice)
+                # Extract content from response
+                content = response.choices[0].message.content or ""
+                return content, cost
             except litellm.Timeout as e:
                 timeout_attempts += 1
                 last_error = e
@@ -157,19 +263,26 @@ class LLMClient:
 
         raise last_error  # type: ignore[misc]
 
-    def _single_call(self, model: str, messages: list[dict]) -> tuple[str, CostUsage]:
+    def _single_call(self, model: str, messages: list[dict], tools: list[dict] | None = None, tool_choice: str | None = None) -> tuple[any, CostUsage]:
+        """Make a single LLM call and return (response_object, cost).
+
+        Returns the full litellm response object to support tool calling.
+        """
         kwargs = {
             "model": model,
             "messages": messages,
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
         }
+        if tools:
+            kwargs["tools"] = tools
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
         if self.config.api_base and model.startswith("ollama/"):
             kwargs["api_base"] = self.config.api_base
 
         response = completion(**kwargs)
 
-        content = response.choices[0].message.content or ""
         usage = response.usage
         call_cost = CostUsage(
             llm_calls=1,
@@ -181,7 +294,7 @@ class LLMClient:
         )
 
         self._accumulated_cost = self._accumulated_cost + call_cost
-        return content, call_cost
+        return response, call_cost
 
     @staticmethod
     def _fmt_exc(err: Exception) -> str:

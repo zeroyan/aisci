@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 from src.agents.experiment.tool_agent import ToolAgent
 from src.llm.client import LLMClient, LLMConfig
 from src.sandbox.base import SandboxExecutor
+from src.schemas import CostUsage
 
 
 def test_tool_agent_finish_success(tmp_path: Path) -> None:
@@ -34,23 +35,24 @@ def test_tool_agent_finish_success(tmp_path: Path) -> None:
 
     mock_response.choices[0].message.tool_calls = [mock_tool_call]
 
-    with patch("src.agents.experiment.tool_agent.completion") as mock_completion:
-        mock_completion.return_value = mock_response
+    # Mock complete_with_tools to return (response, cost)
+    mock_cost = CostUsage(llm_calls=1, input_tokens=100, output_tokens=50, estimated_cost_usd=0.01)
+    mock_llm.complete_with_tools = Mock(return_value=(mock_response, mock_cost))
 
-        agent = ToolAgent(
-            llm_client=mock_llm,
-            sandbox=mock_sandbox,
-            system_prompt="Test system prompt",
-            max_turns=5,
-        )
+    agent = ToolAgent(
+        llm_client=mock_llm,
+        sandbox=mock_sandbox,
+        system_prompt="Test system prompt",
+        max_turns=5,
+    )
 
-        workspace = tmp_path / "workspace"
-        record = agent.run_iteration(
-            run_id="test_run",
-            iteration_index=1,
-            workspace=workspace,
-            initial_prompt="Run the test",
-        )
+    workspace = tmp_path / "workspace"
+    record = agent.run_iteration(
+        run_id="test_run",
+        iteration_index=1,
+        workspace=workspace,
+        initial_prompt="Run the test",
+    )
 
     assert record.status == "finished"
     assert record.finish_result is not None
@@ -79,23 +81,24 @@ def test_tool_agent_max_turns_timeout(tmp_path: Path) -> None:
 
     mock_response.choices[0].message.tool_calls = [mock_tool_call]
 
-    with patch("src.agents.experiment.tool_agent.completion") as mock_completion:
-        mock_completion.return_value = mock_response
+    # Mock complete_with_tools to return (response, cost)
+    mock_cost = CostUsage(llm_calls=1, input_tokens=100, output_tokens=50, estimated_cost_usd=0.01)
+    mock_llm.complete_with_tools = Mock(return_value=(mock_response, mock_cost))
 
-        agent = ToolAgent(
-            llm_client=mock_llm,
-            sandbox=mock_sandbox,
-            system_prompt="Test",
-            max_turns=3,
-        )
+    agent = ToolAgent(
+        llm_client=mock_llm,
+        sandbox=mock_sandbox,
+        system_prompt="Test",
+        max_turns=3,
+    )
 
-        workspace = tmp_path / "workspace"
-        record = agent.run_iteration(
-            run_id="test_run",
-            iteration_index=1,
-            workspace=workspace,
-            initial_prompt="Run test",
-        )
+    workspace = tmp_path / "workspace"
+    record = agent.run_iteration(
+        run_id="test_run",
+        iteration_index=1,
+        workspace=workspace,
+        initial_prompt="Run test",
+    )
 
     assert record.status == "timeout"
     assert record.total_turns == 3
@@ -123,23 +126,24 @@ def test_tool_agent_finish_failure(tmp_path: Path) -> None:
 
     mock_response.choices[0].message.tool_calls = [mock_tool_call]
 
-    with patch("src.agents.experiment.tool_agent.completion") as mock_completion:
-        mock_completion.return_value = mock_response
+    # Mock complete_with_tools to return (response, cost)
+    mock_cost = CostUsage(llm_calls=1, input_tokens=100, output_tokens=50, estimated_cost_usd=0.01)
+    mock_llm.complete_with_tools = Mock(return_value=(mock_response, mock_cost))
 
-        agent = ToolAgent(
-            llm_client=mock_llm,
-            sandbox=mock_sandbox,
-            system_prompt="Test",
-            max_turns=5,
-        )
+    agent = ToolAgent(
+        llm_client=mock_llm,
+        sandbox=mock_sandbox,
+        system_prompt="Test",
+        max_turns=5,
+    )
 
-        workspace = tmp_path / "workspace"
-        record = agent.run_iteration(
-            run_id="test_run",
-            iteration_index=1,
-            workspace=workspace,
-            initial_prompt="Run test",
-        )
+    workspace = tmp_path / "workspace"
+    record = agent.run_iteration(
+        run_id="test_run",
+        iteration_index=1,
+        workspace=workspace,
+        initial_prompt="Run test",
+    )
 
     assert record.status == "finished"
     assert record.finish_result is not None
