@@ -80,6 +80,8 @@ class PlanStep(BaseModel):
     step_id: str
     description: str
     expected_output: str
+    depends_on: list[str] = Field(default_factory=list)  # Dependent step_ids
+    estimated_minutes: int | None = None  # Estimated duration
 
 
 # -- Experiment results --------------------------------------------------------
