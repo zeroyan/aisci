@@ -13,7 +13,11 @@ from src.schemas import ResourceUsage
 
 
 class CodeSnapshot(BaseModel):
-    """Filename-to-content mapping with an entrypoint command."""
+    """Filename-to-content mapping with an entrypoint command.
+
+    .. deprecated::
+        Use ToolCall with write_file tool instead.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -93,7 +97,11 @@ class NextAction(BaseModel):
 
 
 class AgentDecision(BaseModel):
-    """Agent's post-iteration decision on whether to continue the loop."""
+    """Agent's post-iteration decision on whether to continue the loop.
+
+    .. deprecated::
+        Use FinishResult from tool_use module instead.
+    """
 
     model_config = ConfigDict(frozen=True)
 
