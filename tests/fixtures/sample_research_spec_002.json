@@ -1,0 +1,35 @@
+{
+    "spec_id": "spec_sample_002",
+    "title": "2D 矩形装箱问题（2D Bin Packing）启发式算法探索",
+    "objective": "设计并实现一种二维矩形装箱（2D Bin Packing）启发式算法。在一个尺寸为 100x100 的固定矩形容器中，尽可能多地装入 100 个生成的随机尺寸小矩形（长宽在 5 到 30 之间），不能重叠。要求该算法突破简单的顺序堆叠，达到的容器空间利用率超过 82%。",
+    "hypothesis": [
+        "简单的 Bottom-Left (BL) 算法或者无序的挨个放置策略，在面对随机尺寸矩形时易导致极大空间浪费。引入面积或长边预先降序排序、并且设计能够追踪轮廓线（Skyline）或空闲缝隙（Guillotine Cuts）的启发式算法，能有效提升空间利用率至 82% 阈值以上。"
+    ],
+    "metrics": [
+        {
+            "name": "space_utilization",
+            "direction": "maximize",
+            "target": 0.82,
+            "minimum_acceptable": 0.60
+        }
+    ],
+    "constraints": {
+        "max_budget_usd": 5.0,
+        "max_runtime_hours": 0.5,
+        "max_iterations": 5,
+        "compute": "cpu"
+    },
+    "dataset_refs": [],
+    "risk_notes": [
+        "时间复杂度极易爆炸，禁止写时间复杂度达到 O(n!) 的穷举搜索代码，超时将直接判定为 failures；必须在代码中自行用代码生成 100 个随机尺寸小矩形的测试用例以计算利用率 (利用率 = 装入矩形总面积 / 10000)。",
+        "利用率须输出至 metrics.json"
+    ],
+    "non_goals": [
+        "三维装箱问题",
+        "基于强化学习的解决方案"
+    ],
+    "status": "confirmed",
+    "created_by": "user",
+    "created_at": "2026-02-28T00:00:00Z",
+    "updated_at": "2026-02-28T00:00:00Z"
+}

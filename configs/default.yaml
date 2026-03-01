@@ -1,0 +1,31 @@
+# AiSci Default Configuration
+# Override with CLI --config or environment variables
+
+llm:
+  # default_model: "gemini/gemini-2.0-flash"
+  # fallback_model: "gemini/gemini-1.5-flash"
+  default_model: "ollama/qwen3:8b"
+  fallback_model: "ollama/qwen3:8b"  # 本地无多余模型，fallback 用同一个
+  api_base: "http://127.0.0.1:11434"
+  temperature: 0.2
+  max_tokens: 4096
+  retry:
+    timeout_retries: 2
+    rate_limit_retries: 3
+    rate_limit_base_delay_sec: 1.0  # exponential backoff base
+
+sandbox:
+  timeout_sec: 1800          # 30 minutes per iteration
+  max_memory_mb: 8192
+  gpu_required: false
+  venv_path: ".sandbox_venv"  # relative to workspace dir
+  stdout_max_bytes: 102400    # 100KB truncation
+
+experiment:
+  max_iterations: 20
+  max_budget_usd: 50.0
+  max_runtime_hours: 4.0
+  consecutive_failure_limit: 3  # request_human after N failures
+
+storage:
+  runs_dir: "runs"
