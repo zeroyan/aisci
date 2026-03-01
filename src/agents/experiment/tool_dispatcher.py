@@ -69,7 +69,16 @@ class ToolDispatcher:
                     error="Missing 'path' or 'content' argument",
                 )
 
-            file_path = self.workspace / path_str
+            # Security: resolve path and check it's within workspace
+            file_path = (self.workspace / path_str).resolve()
+            if not str(file_path).startswith(str(self.workspace.resolve())):
+                return ToolResult(
+                    call_id=call.call_id,
+                    tool_name="write_file",
+                    exit_code=1,
+                    error=f"Path traversal detected: {path_str}",
+                )
+
             file_path.parent.mkdir(parents=True, exist_ok=True)
             file_path.write_text(content, encoding="utf-8")
 
@@ -88,7 +97,12 @@ class ToolDispatcher:
             )
 
     def _run_bash(self, call: ToolCall) -> ToolResult:
-        """Execute a bash command in the workspace."""
+        """Execute a bash command in the workspace.
+
+        Note: Currently uses subprocess directly for simplicity.
+        TODO: Refactor to use sandbox.execute() for consistent isolation
+        when migrating to Docker/remote sandbox backends.
+        """
         import subprocess
 
         try:
@@ -99,6 +113,16 @@ class ToolDispatcher:
                     tool_name="run_bash",
                     exit_code=1,
                     error="Missing 'cmd' argument",
+                )
+
+            # Security: Basic command validation (not exhaustive)
+            dangerous_patterns = ["rm -rf /", ":(){ :|:& };:", "mkfs", "dd if="]
+            if any(pattern in cmd for pattern in dangerous_patterns):
+                return ToolResult(
+                    call_id=call.call_id,
+                    tool_name="run_bash",
+                    exit_code=1,
+                    error="Dangerous command pattern detected",
                 )
 
             result = subprocess.run(
@@ -144,7 +168,16 @@ class ToolDispatcher:
                     error="Missing 'path' argument",
                 )
 
-            file_path = self.workspace / path_str
+            # Security: resolve path and check it's within workspace
+            file_path = (self.workspace / path_str).resolve()
+            if not str(file_path).startswith(str(self.workspace.resolve())):
+                return ToolResult(
+                    call_id=call.call_id,
+                    tool_name="read_file",
+                    exit_code=1,
+                    error=f"Path traversal detected: {path_str}",
+                )
+
             if not file_path.exists():
                 return ToolResult(
                     call_id=call.call_id,

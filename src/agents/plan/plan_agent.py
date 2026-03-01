@@ -74,8 +74,10 @@ Output as JSON with keys: method_summary, framework, baseline_methods, key_refer
             # Try to extract JSON from response
             json_match = response[response.find("{"):response.rfind("}")+1]
             data = json.loads(json_match)
-        except:
-            # Fallback: create minimal plan
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Failed to parse LLM response: {e}")
+            logger.error(f"Raw response: {response[:500]}")
+            # Fallback: create minimal plan with error note
             data = {
                 "method_summary": "Implement baseline experiment",
                 "framework": "Python",

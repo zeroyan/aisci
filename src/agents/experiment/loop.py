@@ -226,6 +226,9 @@ class ExperimentLoop:
             if tool_record.finish_result:
                 if tool_record.finish_result.success:
                     logger.info("Agent finished successfully")
+                    # Update best iteration before breaking
+                    if iter_status == IterationStatus.succeeded and metrics:
+                        self._update_best_iteration(experiment_run, iteration, spec)
                     experiment_run.stop_reason = StopReason.GOAL_MET
                     experiment_run.transition_to(RunStatus.SUCCEEDED)
                     break

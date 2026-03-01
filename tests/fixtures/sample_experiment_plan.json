@@ -1,0 +1,46 @@
+{
+  "plan_id": "plan_sample_001",
+  "spec_id": "spec_sample_001",
+  "version": 1,
+  "title": "极度不平衡数据集下的稀有事件检测实验方案",
+  "method_summary": "构建一个极度不平衡的二分类合成数据集，比较带类别权重的基线模型与重采样策略，重点优化少数类F1。",
+  "technical_approach": {
+    "framework": "scikit-learn",
+    "baseline_methods": [
+      "LogisticRegression(class_weight='balanced')",
+      "RandomForestClassifier(class_weight='balanced')"
+    ],
+    "key_references": [
+      "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html"
+    ],
+    "implementation_notes": "先固定随机种子生成数据，再分层划分训练测试集，最后输出metrics.json。"
+  },
+  "evaluation_protocol": "以少数类f1_score为主指标，达到0.85视为目标达成；同时记录precision与recall用于误差分析。",
+  "steps": [
+    {
+      "step_id": "step-01",
+      "description": "生成95:5不平衡二分类数据，完成训练/验证划分，并实现基线训练脚本。",
+      "expected_output": "baseline_metrics.json",
+      "depends_on": [],
+      "estimated_minutes": 10
+    },
+    {
+      "step_id": "step-02",
+      "description": "引入重采样或类别权重策略，比较模型在少数类上的f1_score并输出最终metrics.json。",
+      "expected_output": "metrics.json",
+      "depends_on": [
+        "step-01"
+      ],
+      "estimated_minutes": 20
+    }
+  ],
+  "baseline": {
+    "status": "pending",
+    "repo": null,
+    "result_summary": null,
+    "failure_reason": null
+  },
+  "revision_history": [],
+  "created_at": "2026-02-28T00:00:00Z",
+  "updated_at": "2026-02-28T00:00:00Z"
+}

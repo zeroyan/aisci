@@ -20,8 +20,10 @@ class Searcher:
     ) -> None:
         """
         Args:
-            backend: "tavily" or "duckduckgo"
+            backend: "tavily" or "duckduckgo" (for general web search)
             max_results: Max results per query
+
+        Note: Paper search uses arxiv, code search uses GitHub (not implemented yet).
         """
         self.backend = backend
         self.max_results = max_results
