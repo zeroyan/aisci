@@ -92,6 +92,7 @@ class RunService:
         )
 
         llm = LLMClient(self.llm_config)
+        llm.validate_provider_ready()
         sandbox = SubprocessSandbox(runs_dir=self.store.runs_dir)
         loop = ExperimentLoop(
             llm=llm,

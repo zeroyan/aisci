@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
+import urllib.error
+import urllib.request
+import json
 
 import litellm
 from litellm import completion
@@ -17,6 +21,7 @@ logger = logging.getLogger(__name__)
 class LLMConfig(BaseModel):
     default_model: str = "claude-sonnet-4-6"
     fallback_model: str = "gpt-4o-mini"
+    api_base: str | None = None
     temperature: float = 0.2
     max_tokens: int = 4096
     timeout_retries: int = 2
@@ -39,6 +44,45 @@ class LLMClient:
 
     def reset_cost(self) -> None:
         self._accumulated_cost = CostUsage()
+
+    def validate_provider_ready(self) -> None:
+        """Fail fast with actionable diagnostics for local providers."""
+        model = self.config.default_model
+        if not model.startswith("ollama/"):
+            return
+
+        api_base = self.config.api_base or "http://127.0.0.1:11434"
+        model_name = model.split("/", 1)[1]
+
+        # Avoid proxying localhost in environments that set HTTP(S)_PROXY.
+        no_proxy = os.environ.get("NO_PROXY", "")
+        required = ["127.0.0.1", "localhost"]
+        missing = [item for item in required if item not in no_proxy]
+        if missing:
+            os.environ["NO_PROXY"] = ",".join([no_proxy, *missing]).strip(",")
+
+        tags_url = f"{api_base.rstrip('/')}/api/tags"
+        try:
+            with urllib.request.urlopen(tags_url, timeout=3) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.URLError as e:
+            raise RuntimeError(
+                f"Ollama not reachable at {api_base}. "
+                f"Start service with 'ollama serve'. Detail: {self._fmt_exc(e)}"
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to query Ollama tags from {tags_url}. Detail: {self._fmt_exc(e)}"
+            ) from e
+
+        models = payload.get("models", []) if isinstance(payload, dict) else []
+        names = {m.get("name") for m in models if isinstance(m, dict)}
+        if model_name not in names:
+            sample = ", ".join(sorted(n for n in names if isinstance(n, str))[:5]) or "<empty>"
+            raise RuntimeError(
+                f"Ollama model '{model_name}' not found. "
+                f"Run 'ollama pull {model_name}'. Installed: {sample}"
+            )
 
     def complete(
         self,
@@ -63,7 +107,7 @@ class LLMClient:
             logger.warning(
                 "Primary model %s failed: %s. Trying fallback %s",
                 primary_model,
-                primary_err,
+                self._fmt_exc(primary_err),
                 self.config.fallback_model,
             )
             try:
@@ -72,7 +116,8 @@ class LLMClient:
                 raise RuntimeError(
                     f"Both primary ({primary_model}) and fallback "
                     f"({self.config.fallback_model}) models failed. "
-                    f"Primary: {primary_err}, Fallback: {fallback_err}"
+                    f"Primary: {self._fmt_exc(primary_err)}, "
+                    f"Fallback: {self._fmt_exc(fallback_err)}"
                 ) from fallback_err
 
     def _call_with_retries(
@@ -113,12 +158,16 @@ class LLMClient:
         raise last_error  # type: ignore[misc]
 
     def _single_call(self, model: str, messages: list[dict]) -> tuple[str, CostUsage]:
-        response = completion(
-            model=model,
-            messages=messages,
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-        )
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+        }
+        if self.config.api_base and model.startswith("ollama/"):
+            kwargs["api_base"] = self.config.api_base
+
+        response = completion(**kwargs)
 
         content = response.choices[0].message.content or ""
         usage = response.usage
@@ -133,3 +182,19 @@ class LLMClient:
 
         self._accumulated_cost = self._accumulated_cost + call_cost
         return content, call_cost
+
+    @staticmethod
+    def _fmt_exc(err: Exception) -> str:
+        """Format exception to keep messages useful when str(err) is empty."""
+        msg = str(err).strip() or repr(err)
+        parts = [f"{type(err).__name__}: {msg}"]
+
+        cause = err.__cause__ or err.__context__
+        depth = 0
+        while cause is not None and depth < 3:
+            cmsg = str(cause).strip() or repr(cause)
+            parts.append(f"caused_by={type(cause).__name__}: {cmsg}")
+            cause = cause.__cause__ or cause.__context__
+            depth += 1
+
+        return " | ".join(parts)

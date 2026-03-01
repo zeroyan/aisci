@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+import io
+import json
+import urllib.error
 
 import litellm
 import pytest
@@ -170,3 +173,25 @@ def test_reset_cost(mock_completion: MagicMock) -> None:
     client.reset_cost()
 
     assert client.accumulated_cost == CostUsage()
+
+
+def test_validate_provider_ready_unreachable_ollama() -> None:
+    """Ollama preflight should fail with actionable message when service is down."""
+    client = LLMClient(
+        config=LLMConfig(default_model="ollama/qwen3:8b", api_base="http://127.0.0.1:11434")
+    )
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = urllib.error.URLError("connection refused")
+        with pytest.raises(RuntimeError, match="Ollama not reachable"):
+            client.validate_provider_ready()
+
+
+def test_validate_provider_ready_model_missing() -> None:
+    """Ollama preflight should fail when requested model is not installed."""
+    client = LLMClient(
+        config=LLMConfig(default_model="ollama/qwen3:8b", api_base="http://127.0.0.1:11434")
+    )
+    payload = io.BytesIO(json.dumps({"models": [{"name": "llama3.1:8b"}]}).encode("utf-8"))
+    with patch("urllib.request.urlopen", return_value=payload):
+        with pytest.raises(RuntimeError, match="model 'qwen3:8b' not found"):
+            client.validate_provider_ready()

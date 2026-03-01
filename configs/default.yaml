@@ -2,8 +2,11 @@
 # Override with CLI --config or environment variables
 
 llm:
-  default_model: "gemini/gemini-2.0-flash"
-  fallback_model: "gemini/gemini-1.5-flash"
+  # default_model: "gemini/gemini-2.0-flash"
+  # fallback_model: "gemini/gemini-1.5-flash"
+  default_model: "ollama/qwen3:8b"
+  fallback_model: "ollama/qwen3:8b"  # 本地无多余模型，fallback 用同一个
+  api_base: "http://127.0.0.1:11434"
   temperature: 0.2
   max_tokens: 4096
   retry:

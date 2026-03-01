@@ -43,6 +43,16 @@ class SandboxRequest(BaseModel):
     timeout_sec: int = Field(default=1800, gt=0)
     resource_limits: ResourceLimits = ResourceLimits()
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_timeout(cls, data: dict) -> dict:
+        if isinstance(data, dict) and "timeout_sec" in data:
+            try:
+                data["timeout_sec"] = int(float(data["timeout_sec"]))
+            except (ValueError, TypeError):
+                pass
+        return data
+
 
 # -- Sandbox response ----------------------------------------------------------
 
@@ -93,8 +103,17 @@ class AgentDecision(BaseModel):
     stop_reason: (
         Literal["goal_met", "max_iterations", "no_progress", "fatal_error"] | None
     ) = None
-    analysis_summary: str
+    analysis_summary: str | None = None
     next_action: NextAction | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fix_literal_nulls(cls, data: dict) -> dict:
+        """Handle LLM hallucinating 'null' string instead of actual null."""
+        if isinstance(data, dict):
+            if data.get("stop_reason") == "null":
+                data["stop_reason"] = None
+        return data
 
     @model_validator(mode="after")
     def _check_decision_fields(self) -> "AgentDecision":

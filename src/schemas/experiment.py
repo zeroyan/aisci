@@ -1,9 +1,10 @@
-"""Pydantic models for experiment iterations and runs."""
+"""Pydantic models for experiment iterations and run state."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -11,71 +12,53 @@ from src.schemas import CostUsage, ResourceUsage
 from src.schemas.state import RunStatus, StopReason, validate_transition
 
 
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
-
-
 class IterationStatus(StrEnum):
-    """Outcome of a single experiment iteration."""
+    """Execution status for a single iteration."""
 
     succeeded = "succeeded"
     failed = "failed"
     stopped = "stopped"
 
 
-# ---------------------------------------------------------------------------
-# Models
-# ---------------------------------------------------------------------------
-
-
 class ExperimentIteration(BaseModel):
-    """Snapshot of one iteration inside an experiment run."""
+    """Record of one plan->codegen->execute->analyze iteration."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=False)
 
     iteration_id: str = Field(min_length=1)
     run_id: str = Field(min_length=1)
     index: int = Field(ge=1)
-
     code_change_summary: str | None = None
     commands: list[str] = Field(min_length=1)
-    params: dict | None = None
+    params: dict[str, Any] | None = None
     metrics: dict[str, float] | None = None
-
-    resource_usage: ResourceUsage | None = None
+    resource_usage: ResourceUsage = ResourceUsage()
     cost_usage: CostUsage
     status: IterationStatus
     error_summary: str | None = None
-
-    artifact_dir: str
-
+    artifact_dir: str = Field(min_length=1)
     started_at: datetime | None = None
     ended_at: datetime | None = None
 
 
 class ExperimentRun(BaseModel):
-    """Top-level experiment run — mutable during execution."""
+    """Top-level run state tracked across all iterations."""
 
-    # NOT frozen: status, cost, timestamps are updated in-place.
     model_config = ConfigDict(frozen=False)
 
     run_id: str = Field(min_length=1)
     spec_id: str = Field(min_length=1)
     plan_id: str | None = None
-
     status: RunStatus = RunStatus.QUEUED
     stop_reason: StopReason | None = None
     iteration_count: int = Field(default=0, ge=0)
     best_iteration_id: str | None = None
-
-    cost_usage: CostUsage = Field(default_factory=CostUsage)
-
+    cost_usage: CostUsage = CostUsage()
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    def transition_to(self, new_status: RunStatus) -> None:
-        """Advance run status via the state machine; raises on invalid move."""
-        validate_transition(self.status, new_status)
-        self.status = new_status
-        self.updated_at = datetime.now(timezone.utc)
+    def transition_to(self, target: RunStatus) -> None:
+        """Validate and apply a RunStatus transition."""
+        validate_transition(self.status, target)
+        self.status = target
+

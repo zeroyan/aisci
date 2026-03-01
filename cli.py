@@ -35,6 +35,7 @@ def _build_service(config: dict) -> RunService:
     llm_config = LLMConfig(
         default_model=llm_cfg.get("default_model", "claude-sonnet-4-6"),
         fallback_model=llm_cfg.get("fallback_model", "gpt-4o-mini"),
+        api_base=llm_cfg.get("api_base"),
         temperature=llm_cfg.get("temperature", 0.2),
         max_tokens=llm_cfg.get("max_tokens", 4096),
         timeout_retries=llm_cfg.get("retry", {}).get("timeout_retries", 2),
