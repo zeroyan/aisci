@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
 
 from src.agents.experiment.tool_agent import ToolAgent
 from src.llm.client import LLMClient, LLMConfig
