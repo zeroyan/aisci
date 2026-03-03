@@ -10,3 +10,8 @@ arxiv>=2.1
 semanticscholar>=0.8
 trafilatura>=1.12
 httpx>=0.27
+
+# Spec 003: Execution Upgrade dependencies
+docker>=7.0.0                    # Docker 容器管理
+sentence-transformers>=2.2.0     # 嵌入模型（记忆检索）
+structlog>=24.0.0                # 结构化日志

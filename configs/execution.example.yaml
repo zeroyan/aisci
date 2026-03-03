@@ -1,0 +1,83 @@
+# AiSci Execution Configuration Example
+# Copy this file to execution.yaml and customize for your needs
+
+# Orchestrator Configuration (Multi-Branch Execution)
+orchestrator:
+  num_branches: 3                               # Number of parallel branches (1-3)
+  max_iterations: 10                            # Max iterations per branch
+  enable_memory: true                           # Enable experiment memory
+  enable_docker: false                          # Use Docker sandbox (requires Docker)
+  early_stop_threshold: 2                       # Stop after N consecutive no-improvement iterations
+
+# Budget Configuration
+budget:
+  max_cost_usd: 30.0                            # Total budget for all branches
+  max_time_hours: 3.0                           # Total time for all branches
+  reallocation_interval: 5                      # Reallocate budget every N iterations
+  min_branch_budget_ratio: 0.1                  # Min 10% budget per branch
+
+# Memory Configuration (Experiment Memory System)
+memory:
+  embedding_model: "all-MiniLM-L6-v2"           # sentence-transformers model
+  similarity_threshold: 0.7                     # Min similarity for matches (0-1)
+  top_k: 5                                      # Number of similar memories to retrieve
+  max_entries_per_branch: 1000                  # Max memory entries per branch
+  cache_dir: ".embedding_cache"                 # Embedding cache directory
+
+  # Aggregation settings
+  aggregation:
+    min_success_count: 2                        # Min successes to include pattern
+    deduplication_threshold: 0.9                # Similarity threshold for dedup
+
+# Docker Configuration (Optional, requires Docker installed)
+docker:
+  enabled: false                                # Enable Docker isolation
+  image: "python:3.11-slim"                     # Base Docker image
+  cpu_quota: 100000                             # 1 CPU (100000 = 100%)
+  memory_limit: "512m"                          # Memory limit per container
+  network_mode: "none"                          # Disable network access
+  read_only_root: false                         # Read-only root filesystem
+  timeout_sec: 300                              # Container execution timeout
+  workspace_mount: "/workspace"                 # Mount point in container
+
+# Logging Configuration
+logging:
+  level: "INFO"                                 # DEBUG, INFO, WARNING, ERROR
+  format: "json"                                # "json" or "console"
+  output_dir: "logs"                            # Log file directory
+
+  # Structured logging fields
+  include_fields:
+    - "timestamp"
+    - "level"
+    - "branch_id"
+    - "iteration"
+    - "event"
+    - "cost_usd"
+    - "duration_sec"
+
+# Status Monitor Configuration
+status_monitor:
+  refresh_interval_sec: 1.0                     # Status update frequency
+  show_emoji: true                              # Use emoji icons
+  show_progress_bar: true                       # Show progress bars
+  max_history_entries: 100                      # Max status history
+
+# Advanced Settings
+advanced:
+  # Parallel execution
+  max_parallel_branches: 3                      # Max concurrent branches
+  branch_startup_delay_sec: 2.0                 # Delay between branch starts
+
+  # Error handling
+  auto_retry_on_failure: true                   # Auto-retry failed iterations
+  max_auto_retries: 2                           # Max auto-retries per failure
+
+  # Performance
+  enable_caching: true                          # Enable result caching
+  cache_ttl_hours: 24                           # Cache time-to-live
+
+  # Safety
+  enable_command_whitelist: true                # Enforce command whitelist
+  enable_resource_limits: true                  # Enforce resource limits
+  enable_network_isolation: true                # Isolate network access

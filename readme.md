@@ -5,7 +5,7 @@
 **AI-Driven Autonomous Scientific Research Assistant**
 
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-60%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-304%20passed-brightgreen.svg)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](#) | [简体中文](#)
@@ -57,14 +57,34 @@
 - **方案修订循环**：基于实验结果生成修订建议，支持版本管理
 - **CLI 工具**：`plan generate`、`plan show`、`plan revise` 命令
 
+#### 🔀 多分支串行执行 (Spec 003) ✅
+- **BranchOrchestrator**：支持最多 3 个分支**串行执行**（并行执行规划中）
+- **真实执行链路**：复用稳定的 ExperimentLoop，每个分支真实运行实验
+- **智能预算调度**：动态分配预算，支持时间/成本/迭代次数限制
+- **实验记忆系统**：
+  - 语义相似度搜索（sentence-transformers）
+  - 跨分支知识共享与聚合
+  - 失败案例学习与避免
+- **Docker 沙箱隔离**：可选的容器化执行环境，增强安全性
+- **状态聚合**：自动选择最佳分支，统一汇总结果
+
+**已知限制**：
+- 当前为串行执行（一个分支接一个分支），并行执行规划中
+- 需要配置 LLM API key 才能运行（支持 Claude、GPT、Ollama 等）
+
 ### 🚧 规划中功能
 
-#### 📊 选题发现 (Spec 003)
+
+#### 🔀 多分支真正并行执行
+- 使用 `multiprocessing.Pool` 实现真正的并行执行
+- 实时状态监控（emoji 图标显示各分支执行状态）
+- 结构化日志（基于 structlog 的 JSON/Console 日志输出）
+#### 📊 选题发现 (Spec 004)
 - 多源���题挖掘（arXiv、Papers with Code、GitHub Trending）
 - 候选课题评估与排序
 - 研究空白识别
 
-#### 📝 论文写作 (Spec 004)
+#### 📝 论文写作 (Spec 005)
 - 自动生成论文初稿
 - 图表自动生成
 - 参考文献管理
@@ -125,7 +145,23 @@ python cli.py run status <run_id>
 python cli.py run report <run_id>
 ```
 
-#### 3. 迭代优化方案
+#### 3. 多分支串行执行（新功能）
+
+```bash
+# 启动多分支实验（3 个分支串行执行）
+python cli.py run start <run_id> --enable-orchestrator --num-branches 3
+
+# 或使用独立命令
+python cli.py orchestrator run <run_id> --num-branches 3 --max-time-seconds 3600
+
+# 启用 Docker 沙箱隔离
+python cli.py run start <run_id> --enable-orchestrator --enable-docker
+
+# 查看分支状态
+python cli.py run status <run_id>
+```
+
+#### 4. 迭代优化方案
 
 ```bash
 # 基于实验结果生成修订建议
@@ -136,6 +172,8 @@ python cli.py plan revise <run_id> --apply
 ```
 
 ### 完整工作流示例
+
+#### 单分支工作流
 
 ```bash
 # 1. 生成方案
@@ -157,6 +195,36 @@ python cli.py plan revise exp001 --apply
 python cli.py run create --spec my_spec.json --plan runs/exp001/plan.md
 ```
 
+#### 多分支串行工作流（推荐）
+
+```bash
+# 1. 生成方案
+python cli.py plan generate my_spec.json --run-id exp002
+
+# 2. 创建实验
+python cli.py run create --spec my_spec.json --plan runs/exp002/plan.md
+
+# 3. 启动多分支串行执行（3 个分支依次探索）
+python cli.py run start exp002 --enable-orchestrator --num-branches 3
+
+# 4. 查看各分支状态
+python cli.py run status exp002
+
+# 5. 查看聚合结果（自动选择最佳分支）
+python cli.py run report exp002
+
+# 6. 基于最佳结果优化方案
+python cli.py plan revise exp002 --apply
+```
+
+### Quickstart 示例
+
+查看 `examples/orchestrator_quickstart.py` 了解如何在代码中使用 BranchOrchestrator：
+
+```bash
+python examples/orchestrator_quickstart.py
+```
+
 ---
 
 ## 🏗️ Project Architecture
@@ -175,25 +243,46 @@ aisci/
 │   │   └── plan/               # 方案生成 Agent
 │   │       ├── plan_agent.py   # 方案生成
 │   │       └── revision_agent.py  # 方案修订
+│   ├── orchestrator/           # 多分支编排（新增）
+│   │   ├── branch_orchestrator.py  # 分支编排器
+│   │   ├── branch_executor.py      # 分支执行器
+│   │   ├── variant_generator.py    # 变体生成器
+│   │   ├── workspace_manager.py    # 工作空间管理
+│   │   ├── logger.py               # 结构化日志
+│   │   └── status_monitor.py       # 状态监控
+│   ├── memory/                 # 实验记忆（新增）
+│   │   ├── experiment_memory.py    # 实验记忆存储
+│   │   ├── similarity_search.py    # 语义搜索
+│   │   ├── embedding_cache.py      # 嵌入缓存
+│   │   └── memory_aggregator.py    # 跨分支聚合
+│   ├── scheduler/              # 预算调度（新增）
+│   │   └── budget_scheduler.py     # 动态预算分配
 │   ├── llm/                    # LLM 客户端
 │   │   └── client.py           # LiteLLM 封装（重试+回退）
 │   ├── sandbox/                # 沙箱执行
 │   │   ├── base.py             # 抽象接口
-│   │   └── subprocess_sandbox.py  # Subprocess 实现
+│   │   ├── subprocess_sandbox.py  # Subprocess 实现
+│   │   ├── docker_sandbox.py      # Docker 实现（新增）
+│   │   ├── docker_config.py       # Docker 配置（新增）
+│   │   ├── docker_cleanup.py      # 容器清理（新增）
+│   │   └── dependency_installer.py # 依赖安装（新增）
 │   ├── knowledge/              # 知识库
 │   │   ├── store.py            # 知识存储
 │   │   └── searcher.py         # 多源检索
 │   ├── schemas/                # 数据模型（Pydantic）
 │   ├── service/                # 业务服务
 │   └── storage/                # 持久化存储
-├── tests/                      # 测试（60 个测试）
+├── tests/                      # 测试（300 个测试）
 │   ├── unit/                   # 单元测试
 │   └── integration/            # 集成测试
+├── examples/                   # 示例代码（新增）
+│   └── orchestrator_quickstart.py  # 多分支快速开始
 ├── configs/                    # 配置文件
 ├── docs/                       # 文档
 └── specs/                      # 功能规格
     ├── 001-research-copilot-mvp/
-    └── 002-plan-baseline-mvp/
+    ├── 002-plan-baseline-mvp/
+    └── 003-execution-upgrade-mvp/  # 新增
 ```
 
 ### 核心组件
@@ -203,24 +292,37 @@ aisci/
 - **PlanAgent**：方案生成 Agent，结合知识库生成实验方案
 - **RevisionAgent**：方案修订 Agent，基于实验结果提供改进建议
 
-#### 2. LLM 层
+#### 2. Orchestrator 层（新增）
+- **BranchOrchestrator**：多分支编排器，管理最多 3 个并行分支
+- **BranchExecutor**：分支执行器，运行单个分支的 PEC 循环
+- **BudgetScheduler**：动态预算调度，根据分支表现重新分配资源
+- **StatusMonitor**：实时状态监控，emoji 图标显示执行进度
+
+#### 3. Memory 层（新增）
+- **ExperimentMemory**：实验记忆存储，记录成功/失败案例
+- **SimilaritySearch**：语义相似度搜索（sentence-transformers）
+- **MemoryAggregator**：跨分支知识聚合，构建全局知识库
+
+#### 4. LLM 层
 - **LLMClient**：统一的 LLM 接口，支持多模型（Claude、GPT、Ollama）
 - 重试机制：超时重试、速率限制重试
 - 回退策略：主模型失败自动切换到备用模型
 - 成本追踪：自动累计 token 使用和成本
 
-#### 3. 沙箱层
+#### 5. 沙箱层
 - **SandboxExecutor**：抽象接口，支持多种沙箱实现
 - **SubprocessSandbox**：基于 subprocess + venv 的轻量级沙箱
-- 安全隔离：工作目录隔离、命令白名单、超时保护
+- **DockerSandbox**：基于 Docker 的容器化沙箱（新增）
+- 安全隔离：工作目录隔离、命令白名单、超时保护、资源限制
 
-#### 4. 知识库层
+#### 6. 知识库层
 - **KnowledgeStore**：两层缓存架构（全局 + 本地）
 - **Searcher**：多源检索（Tavily、DuckDuckGo、arXiv、Semantic Scholar）
 - 缓存优先：避免重复检索，降低成本
 
 ### 数据流
 
+#### 单分支流程
 ```
 ResearchSpec (JSON)
     ↓
@@ -237,6 +339,24 @@ ExperimentReport (JSON)
 RevisionAgent
     ↓
 Updated ExperimentPlan (v2)
+```
+
+#### 多分支串行流程（新增）
+```
+ResearchSpec + ExperimentPlan
+    ↓
+BranchOrchestrator
+    ├─→ Branch 1 (Variant A) ──→ BranchExecutor ──→ ExperimentLoop ──→ ExperimentMemory
+    ├─→ Branch 2 (Variant B) ──→ BranchExecutor ──→ ExperimentLoop ──→ ExperimentMemory
+    └─→ Branch 3 (Variant C) ──→ BranchExecutor ──→ ExperimentLoop ──→ ExperimentMemory
+    ↓
+BudgetScheduler (动态调度)
+    ↓
+MemoryAggregator (知识聚合)
+    ↓
+Best Branch Result (自动选择)
+    ↓
+Unified ExperimentReport
 ```
 
 ---
@@ -258,9 +378,9 @@ python -m pytest tests/ --cov=src --cov-report=html
 ```
 
 **测试统计**：
-- 总测试数：60
-- 单元测试：53
-- 集成测试：7
+- 总测试数：304
+- 单元测试：226
+- 集成测试：78
 - 通过率：100%
 
 ---
@@ -292,10 +412,11 @@ python -m pytest tests/ --cov=src --cov-report=html
 ### Phase 1: 基础能力 ✅
 - [x] 实验执行循环（Spec 001）
 - [x] 方案生成与知识库（Spec 002）
+- [x] 多分支并行执行（Spec 003）
 
-### Phase 2: 选题与论文 🚧
-- [ ] 选题发现（Spec 003）
-- [ ] 论文写作（Spec 004）
+### Phase 2: 选题与论文 📋
+- [ ] 选题发现（Spec 004）
+- [ ] 论文写作（Spec 005）
 
 ### Phase 3: 高级功能 📋
 - [ ] 自动审稿

@@ -7,7 +7,6 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from litellm import completion
 
 from src.agents.experiment.tool_dispatcher import ToolDispatcher
 from src.llm.client import LLMClient
@@ -265,3 +264,48 @@ class ToolAgent:
         record.finished_at = datetime.now(timezone.utc)
         record.total_turns = len(record.turns)
         return record
+
+    def execute_action_plan(
+        self,
+        action_plan: list[dict],
+        workspace: Path,
+    ) -> list[dict]:
+        """Execute a predefined action plan (from Planner).
+
+        Args:
+            action_plan: List of tool calls to execute
+            workspace: Workspace path
+
+        Returns:
+            List of tool results
+
+        Note:
+            This method executes a predefined sequence of tool calls
+            without LLM interaction. Used by Planner-Executor-Critic loop.
+        """
+        dispatcher = ToolDispatcher(workspace=workspace, sandbox=self.sandbox)
+        results = []
+
+        for tool_call in action_plan:
+            tool_name = tool_call.get("tool_name")
+            arguments = tool_call.get("arguments", {})
+
+            # Execute tool
+            result = dispatcher.dispatch(tool_name, arguments)
+
+            results.append(
+                {
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "error": result.error,
+                    "exit_code": result.exit_code,
+                }
+            )
+
+            # Stop on error
+            if result.error or (result.exit_code and result.exit_code != 0):
+                break
+
+        return results

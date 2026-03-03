@@ -115,8 +115,32 @@ class ToolDispatcher:
                     error="Missing 'cmd' argument",
                 )
 
-            # Security: Basic command validation (not exhaustive)
-            dangerous_patterns = ["rm -rf /", ":(){ :|:& };:", "mkfs", "dd if="]
+            # Security: Enhanced command whitelist / dangerous pattern detection
+            dangerous_patterns = [
+                "rm -rf /",
+                "rm -rf ~",
+                "rm -rf *",
+                ":(){ :|:& };:",   # fork bomb
+                "mkfs",
+                "dd if=",
+                "dd of=/dev/",
+                "> /dev/sda",
+                "shred /dev/",
+                "chmod -R 777 /",
+                "chmod 777 /",
+                "chown -R",
+                "/etc/passwd",
+                "/etc/shadow",
+                "sudo rm",
+                "sudo dd",
+                "sudo mkfs",
+                "wget http",
+                "curl http",
+                "nc -l",
+                "ncat -l",
+                "python -c \"import os; os.system",
+                "__import__('os').system",
+            ]
             if any(pattern in cmd for pattern in dangerous_patterns):
                 return ToolResult(
                     call_id=call.call_id,

@@ -100,9 +100,93 @@ def run_create(
 def run_start(
     run_id: str = typer.Argument(help="Run ID to start"),
     config: str | None = config_option,
+    enable_docker: bool = typer.Option(
+        False, "--enable-docker", help="Use Docker sandbox for isolation"
+    ),
+    enable_orchestrator: bool = typer.Option(
+        False, "--enable-orchestrator", help="Use multi-branch orchestrator"
+    ),
+    num_branches: int = typer.Option(
+        3, "--num-branches", help="Number of parallel branches (1-3)"
+    ),
 ) -> None:
-    """Start an experiment run (blocking)."""
+    """Start an experiment run (blocking).
+
+    Use --enable-orchestrator for multi-branch parallel execution.
+    """
     cfg = _load_config(config)
+    if enable_docker:
+        cfg.setdefault("experiment", {})["enable_docker"] = True
+
+    # If orchestrator is enabled, delegate to orchestrator_run
+    if enable_orchestrator:
+        from pathlib import Path
+        from src.llm.client import LLMClient
+        from src.orchestrator.branch_orchestrator import BranchOrchestrator
+        from src.orchestrator.config import OrchestratorConfig
+        from src.schemas.research_spec import ResearchSpec
+        from src.schemas.plan_serializer import PlanSerializer
+
+        # Load spec and plan from run directory
+        runs_dir = Path("runs")
+        spec_path = runs_dir / run_id / "spec" / "research_spec.json"
+        plan_path = runs_dir / run_id / "plan" / "experiment_plan.json"
+
+        if not spec_path.exists():
+            typer.echo(f"Error: Research spec not found: {spec_path}", err=True)
+            raise typer.Exit(1)
+
+        if not plan_path.exists():
+            typer.echo(f"Error: Experiment plan not found: {plan_path}", err=True)
+            raise typer.Exit(1)
+
+        # Load spec and plan
+        spec = ResearchSpec.model_validate_json(spec_path.read_text())
+
+        # Load plan from JSON (experiment_plan.json is JSON format)
+        import json
+        plan_data = json.loads(plan_path.read_text())
+        from src.schemas.research_spec import ExperimentPlan
+        plan = ExperimentPlan.model_validate(plan_data)
+
+        # Create LLM client
+        llm_client = LLMClient()
+
+        # Create orchestrator config (immutable, so create new instance)
+        base_config = OrchestratorConfig.default()
+        orchestrator_config = OrchestratorConfig(
+            orchestrator=base_config.orchestrator.model_copy(
+                update={"num_branches": num_branches}
+            ),
+            budget=base_config.budget,
+            docker=base_config.docker.model_copy(
+                update={"enabled": enable_docker}
+            ),
+            memory=base_config.memory,
+            logging=base_config.logging,
+        )
+
+        # Run orchestrator
+        orchestrator = BranchOrchestrator(orchestrator_config, llm_client)
+        result = orchestrator.run(
+            spec=spec,
+            plan=plan,
+            run_id=run_id,
+            runs_dir=runs_dir,
+        )
+
+        # Display results
+        typer.echo("✓ Orchestration completed")
+        typer.echo(f"  Status: {result.status}")
+        typer.echo(f"  Total cost: ${result.total_cost_usd:.2f}")
+        typer.echo(f"  Total time: {result.total_time_seconds:.1f}s")
+        typer.echo(f"  Iterations: {result.iterations}")
+
+        if result.best_code_path:
+            typer.echo(f"  Best code: {result.best_code_path}")
+        return
+
+    # Otherwise use standard single-branch execution
     svc = _build_service(cfg)
 
     # Setup logging
@@ -432,10 +516,120 @@ def plan_revise(
             )
 
             typer.echo(f"✓ Revision suggestions appended to {plan_path}")
-            typer.echo(f"\nNext steps:")
+            typer.echo("\nNext steps:")
             typer.echo(f"  1. Review suggestions in {plan_path}")
-            typer.echo(f"  2. Edit plan manually if needed")
+            typer.echo("  2. Edit plan manually if needed")
             typer.echo(f"  3. Run 'plan revise {run_id} --apply' to increment version\n")
+
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
+# ============================================================================
+# Orchestrator Commands (Spec 003)
+# ============================================================================
+
+orchestrator_app = typer.Typer(help="Multi-branch orchestration")
+app.add_typer(orchestrator_app, name="orchestrator")
+
+
+@orchestrator_app.command("run")
+def orchestrator_run(
+    run_id: str = typer.Argument(..., help="Run identifier"),
+    num_branches: int = typer.Option(3, help="Number of parallel branches (1-3)"),
+    max_cost_usd: float = typer.Option(10.0, help="Maximum cost in USD"),
+    max_time_seconds: float = typer.Option(3600.0, help="Maximum time in seconds"),
+    enable_docker: bool = typer.Option(False, help="Enable Docker isolation"),
+    config_path: str | None = typer.Option(None, help="Path to config file"),
+) -> None:
+    """Run multi-branch experiment orchestration.
+
+    Example:
+        aisci orchestrator run run_001 --num-branches 3 --max-cost-usd 10.0
+    """
+    try:
+        from pathlib import Path
+        import json
+
+        from src.llm.client import LLMClient
+        from src.orchestrator.branch_orchestrator import BranchOrchestrator
+        from src.orchestrator.config import OrchestratorConfig
+        from src.schemas.research_spec import ResearchSpec, ExperimentPlan
+
+        # Load configuration
+        if config_path:
+            config = OrchestratorConfig.from_yaml(config_path)
+        else:
+            config = OrchestratorConfig.default()
+
+        # Override with CLI parameters
+        config = config.model_copy(
+            update={
+                "orchestrator": config.orchestrator.model_copy(
+                    update={"num_branches": num_branches}
+                ),
+                "budget": config.budget.model_copy(
+                    update={
+                        "max_cost_usd": max_cost_usd,
+                        "max_time_seconds": max_time_seconds,
+                    }
+                ),
+                "docker": config.docker.model_copy(update={"enabled": enable_docker}),
+            }
+        )
+
+        # Create LLM client
+        llm_client = LLMClient()
+
+        # Load spec and plan
+        runs_dir = Path("runs")
+        spec_path = runs_dir / run_id / "spec" / "research_spec.json"
+        plan_path = runs_dir / run_id / "plan" / "experiment_plan.json"
+
+        if not spec_path.exists():
+            typer.echo(f"Error: Research spec not found: {spec_path}", err=True)
+            raise typer.Exit(1)
+
+        if not plan_path.exists():
+            typer.echo(f"Error: Experiment plan not found: {plan_path}", err=True)
+            raise typer.Exit(1)
+
+        # Load spec
+        spec = ResearchSpec.model_validate_json(spec_path.read_text())
+
+        # Load plan from JSON
+        import json
+        plan_data = json.loads(plan_path.read_text())
+        plan = ExperimentPlan.model_validate(plan_data)
+
+        # Create orchestrator
+        orchestrator = BranchOrchestrator(config=config, llm_client=llm_client)
+
+        # Run orchestration
+        typer.echo(f"Starting multi-branch orchestration for {run_id}...")
+        typer.echo(f"  Branches: {num_branches}")
+        typer.echo(f"  Max cost: ${max_cost_usd:.2f}")
+        typer.echo(f"  Max time: {max_time_seconds:.0f}s")
+        typer.echo(f"  Docker: {'enabled' if enable_docker else 'disabled'}")
+        typer.echo()
+
+        result = orchestrator.run(
+            spec=spec,
+            plan=plan,
+            run_id=run_id,
+            runs_dir=runs_dir,
+        )
+
+        # Display results
+        typer.echo("✓ Orchestration completed")
+        typer.echo(f"  Status: {result.status}")
+        typer.echo(f"  Total cost: ${result.total_cost_usd:.2f}")
+        typer.echo(f"  Total time: {result.total_time_seconds:.1f}s")
+        typer.echo(f"  Iterations: {result.iterations}")
+
+        if result.best_code_path:
+            typer.echo(f"  Best code: {result.best_code_path}")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)

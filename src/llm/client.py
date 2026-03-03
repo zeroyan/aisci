@@ -129,6 +129,31 @@ class LLMClient:
                     f"Fallback: {self._fmt_exc(fallback_err)}"
                 ) from fallback_err
 
+    def call(
+        self,
+        messages: list[dict],
+        model: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: str | None = None,
+    ) -> str:
+        """Alias for complete() that returns only the response text.
+
+        This method exists for compatibility with Planner/Critic agents.
+
+        Args:
+            messages: List of message dicts
+            model: Model to use (defaults to config.default_model)
+            system_prompt: Optional system prompt to prepend
+            tools: Optional list of tool definitions for function calling
+            tool_choice: Optional tool choice strategy
+
+        Returns:
+            Response text only (cost tracking happens internally)
+        """
+        response, _cost = self.complete(messages, model, system_prompt, tools, tool_choice)
+        return response
+
     def complete_with_tools(
         self,
         messages: list[dict],
