@@ -1,0 +1,78 @@
+# AI-Scientist Integration Configuration
+
+# Runtime settings
+runtime:
+  # Path to AI-Scientist runtime directory
+  path: "external/ai-scientist-runtime"
+
+  # Launch script name
+  launch_script: "launch_scientist.py"
+
+# Job management
+jobs:
+  # Maximum concurrent jobs
+  max_concurrent: 2
+
+  # Job polling interval (seconds)
+  poll_interval: 60
+
+  # Job timeout (seconds, 24 hours default)
+  timeout: 86400
+
+  # Auto-start pending jobs when current job completes
+  auto_start_pending: true
+
+# Model settings
+models:
+  # Default model for AI-Scientist
+  default: "deepseek-chat"
+
+  # Alternative models
+  alternatives:
+    - "ollama/qwen3"
+    - "gpt-4"
+    - "claude-3-5-sonnet-20241022"
+
+# Template settings
+templates:
+  # Default template name
+  default: "ai_toy_research_cn"
+
+  # Generic template for dynamic generation
+  generic: "generic_ai_research_cn"
+
+  # Number of ideas to generate
+  num_ideas: 2
+
+  # Writeup format (md or latex)
+  writeup: "md"
+
+# Ollama settings (for local models)
+ollama:
+  # Ollama service host
+  host: "localhost"
+
+  # Ollama service port
+  port: 11434
+
+  # Default local model
+  default_model: "qwen3"
+
+# Environment validation
+validation:
+  # Check Ollama service on startup
+  check_ollama: true
+
+  # Check model availability
+  check_model: true
+
+  # Fail on validation errors (false = warnings only)
+  strict: false
+
+# Logging
+logging:
+  # Log level for AI-Scientist integration
+  level: "INFO"
+
+  # Log file path pattern
+  log_path: "runs/{run_id}/external/logs/{job_id}.log"

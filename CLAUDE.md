@@ -3,6 +3,7 @@
 Auto-generated from all feature plans. Last updated: 2026-02-28
 
 ## Active Technologies
+- 文件系统（runs/<run_id>/external/jobs.jsonl） (004-ai-scientist-integration)
 
 - Python 3.11+（宪法约定） + pydantic, litellm, typer, pyyaml, ruff (001-research-copilot-mvp)
 
@@ -22,6 +23,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+（宪法约定）: Follow standard conventions
 
 ## Recent Changes
+- 004-ai-scientist-integration: Added Python 3.11+（宪法约定）
 
 - 001-research-copilot-mvp: Added Python 3.11+（宪法约定） + pydantic, litellm, typer, pyyaml, ruff
 

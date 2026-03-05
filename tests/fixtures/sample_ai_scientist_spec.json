@@ -1,0 +1,27 @@
+{
+  "spec_id": "ai_scientist_demo_001",
+  "title": "AI-Scientist Integration Demo",
+  "objective": "Demonstrate AI-Scientist integration with a simple toy regression task",
+  "background": "This is a demo spec for testing AI-Scientist integration features including ai-scientist engine mode, hybrid mode, and result standardization.",
+  "metrics": [
+    {
+      "name": "mse",
+      "description": "Mean Squared Error",
+      "direction": "minimize",
+      "target": 0.1
+    },
+    {
+      "name": "r2_score",
+      "description": "R-squared Score",
+      "direction": "maximize",
+      "target": 0.9
+    }
+  ],
+  "constraints": {
+    "max_budget_usd": 10.0,
+    "max_runtime_hours": 0.5,
+    "max_iterations": 5,
+    "compute": "cpu"
+  },
+  "status": "confirmed"
+}

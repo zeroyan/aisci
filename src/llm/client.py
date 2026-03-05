@@ -181,6 +181,7 @@ class LLMClient:
             messages = [{"role": "system", "content": system_prompt}, *messages]
 
         primary_model = model or self.config.default_model
+        self._ensure_local_no_proxy(primary_model)
         try:
             return self._call_with_tools_retries(primary_model, messages, tools, tool_choice)
         except Exception as primary_err:
@@ -293,6 +294,7 @@ class LLMClient:
 
         Returns the full litellm response object to support tool calling.
         """
+        self._ensure_local_no_proxy(model)
         kwargs = {
             "model": model,
             "messages": messages,
@@ -320,6 +322,20 @@ class LLMClient:
 
         self._accumulated_cost = self._accumulated_cost + call_cost
         return response, call_cost
+
+    def _ensure_local_no_proxy(self, model: str) -> None:
+        """Keep localhost Ollama calls from going through SOCKS/HTTP proxies."""
+        if not model.startswith("ollama/"):
+            return
+        required = ["127.0.0.1", "localhost"]
+        no_proxy = os.environ.get("NO_PROXY", "")
+        missing = [item for item in required if item not in no_proxy]
+        if missing:
+            os.environ["NO_PROXY"] = ",".join([no_proxy, *missing]).strip(",")
+        no_proxy_lower = os.environ.get("no_proxy", "")
+        missing_lower = [item for item in required if item not in no_proxy_lower]
+        if missing_lower:
+            os.environ["no_proxy"] = ",".join([no_proxy_lower, *missing_lower]).strip(",")
 
     @staticmethod
     def _fmt_exc(err: Exception) -> str:

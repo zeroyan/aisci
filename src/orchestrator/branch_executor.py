@@ -15,6 +15,7 @@ from src.sandbox.subprocess_sandbox import SubprocessSandbox
 from src.schemas.experiment import ExperimentRun
 from src.schemas.orchestrator import BranchConfig, BranchResult
 from src.schemas.research_spec import ExperimentPlan, ResearchSpec
+from src.schemas.state import RunStatus
 from src.storage.artifact import ArtifactStore
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,10 @@ class BranchExecutor:
             if self.enable_docker:
                 sandbox = DockerSandbox(config=self.docker_config)
             else:
-                sandbox = SubprocessSandbox(workspace_path=config.workspace_path)
+                # Route subprocess artifacts into:
+                # runs/<run_id>/branches/<branch_id>/iterations/...
+                # by setting runs_dir to the parent "branches" directory.
+                sandbox = SubprocessSandbox(runs_dir=config.workspace_path.parent.parent)
 
             # Create artifact store
             store = ArtifactStore(runs_dir=config.workspace_path.parent.parent)
@@ -123,7 +127,6 @@ class BranchExecutor:
                 run_id=config.branch_id,
                 spec_id=spec.spec_id,
                 plan_id=plan.plan_id,
-                status="running",
                 created_at=datetime.now(timezone.utc),
             )
 
@@ -138,29 +141,44 @@ class BranchExecutor:
             # Execute the loop
             final_run = loop.run(experiment_run, spec, plan)
 
-            # Calculate metrics
+            # Calculate metrics from ExperimentRun aggregate fields.
             elapsed_time = time.time() - start_time
-            total_cost = sum(
-                iter.cost_usage.total_usd
-                for iter in final_run.iterations
-                if iter.cost_usage
-            )
+            total_cost = final_run.cost_usage.estimated_cost_usd
+            total_iterations = final_run.iteration_count
 
             # Determine status
-            status = "success" if final_run.status == "completed" else "failed"
+            status = "failed" if final_run.status == RunStatus.FAILED else "success"
 
             # Generate report
             if status == "failed":
                 report_path = config.workspace_path.parent / "failure_report.md"
-                # TODO: Generate failure report from final_run
+                report_path.write_text(
+                    (
+                        "# Branch Execution Failed\n\n"
+                        f"- branch_id: {config.branch_id}\n"
+                        f"- run_status: {final_run.status}\n"
+                        f"- iterations: {total_iterations}\n"
+                        f"- cost_usd: {total_cost:.6f}\n"
+                    ),
+                    encoding="utf-8",
+                )
             else:
                 report_path = config.workspace_path.parent / "success_report.md"
-                # TODO: Generate success report from final_run
+                report_path.write_text(
+                    (
+                        "# Branch Execution Succeeded\n\n"
+                        f"- branch_id: {config.branch_id}\n"
+                        f"- run_status: {final_run.status}\n"
+                        f"- iterations: {total_iterations}\n"
+                        f"- cost_usd: {total_cost:.6f}\n"
+                    ),
+                    encoding="utf-8",
+                )
 
             return BranchResult(
                 branch_id=config.branch_id,
                 status=status,
-                iterations=len(final_run.iterations),
+                iterations=total_iterations,
                 cost_usd=total_cost,
                 time_seconds=elapsed_time,
                 report_path=str(report_path),
@@ -197,14 +215,7 @@ def _execute_branch_worker(config_dict: dict[str, Any]) -> dict[str, Any]:
         This function is used by multiprocessing.Pool.
         It must be a top-level function (not a method).
     """
-    # Reconstruct BranchConfig from dict
-    from src.schemas.orchestrator import BranchConfig
-
-    config = BranchConfig(**config_dict)
-
-    # Execute branch
-    executor = BranchExecutor(max_workers=1)
-    result = executor._execute_single_branch(config)
-
-    # Return result as dict
-    return result.model_dump()
+    raise NotImplementedError(
+        "Multiprocessing worker is not wired yet. "
+        "BranchExecutor currently executes branches sequentially."
+    )

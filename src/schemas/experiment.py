@@ -56,6 +56,8 @@ class ExperimentRun(BaseModel):
     cost_usage: CostUsage = CostUsage()
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    engine: str = "aisci"  # Engine used: aisci, ai-scientist, hybrid
+    external_metadata: dict[str, Any] | None = None  # External engine metadata
 
     def transition_to(self, target: RunStatus) -> None:
         """Validate and apply a RunStatus transition."""

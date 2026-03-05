@@ -72,6 +72,14 @@
 - 当前为串行执行（一个分支接一个分支），并行执行规划中
 - 需要配置 LLM API key 才能运行（支持 Claude、GPT、Ollama 等）
 
+#### 🤝 AI-Scientist 外部专家集成 (Spec 004) ✅
+- **三种引擎模式**：aisci（默认）、ai-scientist（外部）、hybrid（混合）
+- **异步任务管理**：后台提交、状态查询、结果获取、任务取消
+- **结果标准化**：自动解析并转换为统一的 ExperimentResult 格式
+- **动态模板生成**：根据 ResearchSpec 自动生成 AI-Scientist 模板
+- **环境验证**：检查 AI-Scientist 安装、Ollama 服务、模型可用性
+- **配置管理**：支持 YAML 配置和环境变量覆盖
+
 ### 🚧 规划中功能
 
 
@@ -79,12 +87,12 @@
 - 使用 `multiprocessing.Pool` 实现真正的并行执行
 - 实时状态监控（emoji 图标显示各分支执行状态）
 - 结构化日志（基于 structlog 的 JSON/Console 日志输出）
-#### 📊 选题发现 (Spec 004)
+#### 📊 选题发现 (Spec 005)
 - 多源���题挖掘（arXiv、Papers with Code、GitHub Trending）
 - 候选课题评估与排序
 - 研究空白识别
 
-#### 📝 论文写作 (Spec 005)
+#### 📝 论文写作 (Spec 006)
 - 自动生成论文初稿
 - 图表自动生成
 - 参考文献管理
@@ -412,11 +420,12 @@ python -m pytest tests/ --cov=src --cov-report=html
 ### Phase 1: 基础能力 ✅
 - [x] 实验执行循环（Spec 001）
 - [x] 方案生成与知识库（Spec 002）
-- [x] 多分支并行执行（Spec 003）
+- [x] 多分支串行执行（Spec 003）
+- [x] AI-Scientist 外部专家集成（Spec 004）
 
 ### Phase 2: 选题与论文 📋
-- [ ] 选题发现（Spec 004）
-- [ ] 论文写作（Spec 005）
+- [ ] 选题发现（Spec 005）
+- [ ] 论文写作（Spec 006）
 
 ### Phase 3: 高级功能 📋
 - [ ] 自动审稿

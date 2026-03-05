@@ -102,3 +102,48 @@ class PlanSerializer:
             plan_json["updated_at"] = datetime.fromisoformat(plan_json["updated_at"])
 
         return ExperimentPlan(**plan_json)
+
+    @staticmethod
+    def load(path) -> ExperimentPlan:
+        """Load ExperimentPlan from file.
+
+        Args:
+            path: Path to plan file (supports .md or .json)
+
+        Returns:
+            ExperimentPlan instance
+        """
+        from pathlib import Path
+
+        path = Path(path)
+
+        if not path.exists():
+            raise FileNotFoundError(f"Plan file not found: {path}")
+
+        content = path.read_text()
+
+        # Try JSON first
+        if path.suffix == ".json":
+            plan_json = json.loads(content)
+
+            # Parse nested objects
+            if plan_json.get("technical_approach"):
+                plan_json["technical_approach"] = TechnicalApproach(**plan_json["technical_approach"])
+
+            if plan_json.get("revision_history"):
+                plan_json["revision_history"] = [
+                    RevisionEntry(**rev) for rev in plan_json["revision_history"]
+                ]
+
+            plan_json["steps"] = [PlanStep(**step) for step in plan_json["steps"]]
+
+            # Parse datetime strings
+            if plan_json.get("created_at"):
+                plan_json["created_at"] = datetime.fromisoformat(plan_json["created_at"])
+            if plan_json.get("updated_at"):
+                plan_json["updated_at"] = datetime.fromisoformat(plan_json["updated_at"])
+
+            return ExperimentPlan(**plan_json)
+
+        # Otherwise try markdown
+        return PlanSerializer.from_markdown(content)

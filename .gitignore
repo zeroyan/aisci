@@ -1,3 +1,4 @@
 runs/
 .env
 external/ai-scientist-runtime/
+external/ai-scientist-runtime/results/

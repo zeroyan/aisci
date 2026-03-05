@@ -1,0 +1,41 @@
+{
+    "spec_id": "spec_sample_005",
+    "title": "深度神经网络中“Grokking”（顿悟）现象的微观机制与预测指标探索",
+    "objective": "设计并执行科学实验，探究神经网络在训练时出现的 “Grokking”（即训练误差早早归零，但在经历了极长的额外迭代后，验证集泛化能力才突然爆发）现象。需自主构建适当的合成数据集（如模运算、群论任务）并选择极简网络架构，寻找能够提前预测并指示 Grokking 临界点发生的新型前置“隐式指标”（如层间互信息变化、损失曲率几何演化、权重网络拓扑结构等），或提出一种能显著加速该相变过程的内在干预机制。",
+    "hypothesis": [
+        "Grokking 现象的本质是模型从高度非线性的高维‘记忆解’，经历缓慢游走，相变坍缩至平滑低维的‘泛化解簇’中。在验证准确率突然跃升的几千步之前，模型内部核心子图（如 Hessian 特征值谱分布、稀疏子网络的激活流）必然已经开始了连续而隐蔽的演化。捕获并放大这些早期特征，将能提前预测顿悟时间点，甚至人为诱导其加速完成。"
+    ],
+    "metrics": [
+        {
+            "name": "prediction_correlation_with_grokking_point",
+            "direction": "maximize",
+            "target": 0.85,
+            "minimum_acceptable": 0.60
+        },
+        {
+            "name": "grokking_acceleration_ratio",
+            "direction": "maximize",
+            "target": 0.50,
+            "minimum_acceptable": 0.20
+        }
+    ],
+    "constraints": {
+        "max_budget_usd": 15.0,
+        "max_runtime_hours": 3.0,
+        "max_iterations": 10,
+        "compute": "cpu"
+    },
+    "dataset_refs": [],
+    "risk_notes": [
+        "Grokking 实验通常需要极长的训练 Epoch 且高度依赖超参（如 Weight Decay），请AI科学家在前期做好超参数随机搜索或网格实验，避免在不收敛或不发生相变的参数组合上浪费算力。",
+        "发现的现象及预测指标必须具备统计显著性，不能是单次运行的偶然拟合。实验代码须包含自动绘制训练动力学曲线（Training Dynamics）并将结果数据导出至输出目录。"
+    ],
+    "non_goals": [
+        "在复杂的自然语言真实大数据集（如 Wikipedia）上复现或训练庞大语言模型",
+        "单纯刷取某个合成数据集的最高准确率（本课题核心是‘解释与理论发现’而非‘刷榜’）"
+    ],
+    "status": "confirmed",
+    "created_by": "user",
+    "created_at": "2026-03-05T09:05:00Z",
+    "updated_at": "2026-03-05T09:05:00Z"
+}
