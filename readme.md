@@ -80,19 +80,41 @@
 - **环境验证**：检查 AI-Scientist 安装、Ollama 服务、模型可用性
 - **配置管理**：支持 YAML 配置和环境变量覆盖
 
+#### 💡 Idea-to-Project 生成器 (Spec 005) ✅
+- **7 步转换流程**：从自然语言想法到可执行研究项目
+  1. 想法解析（IntakeAgent）：提取实体和缺失信息
+  2. 交互澄清（ClarificationAgent）：智能问答补全细节
+  3. 证据搜索（EvidenceSearcher）：多源检索（arXiv, Semantic Scholar, GitHub）
+  4. 知识整合（KnowledgeConsolidator）：生成证据报告 + 30 天缓存
+  5. 规格形式化（FormalizationAgent）：生成 ResearchSpec
+  6. 方案生成（ProposalGenerator）：3 种风险档次候选方案
+  7. 就绪验证（ReadinessChecker）：5 维度可执行性检查
+- **智能查询优化**：LLM 驱动的学术关键词提取，提升搜索质量
+- **速率限制处理**：指数退避重试（3 次，3s/6s/12s 延迟）
+- **CLI 命令**：
+  - `project generate <idea>` - 生成研究项目
+  - `project list` - 列出所有项目
+  - `project show <id>` - 查看项目详情
+  - `project delete <id>` - 删除项目
+
 ### 🚧 规划中功能
 
+#### 🤖 自主研究模式 (Spec 006) 📋
+基于 Karpathy autoresearch 理念，为 AiSci 增加长时间自主研究能力：
+- **program.md 驱动**：AI agent 自主控制实验循环，而非 Python 代码控制
+- **Git-based 状态管理**：用 commit/reset/branch 替代 JSON 文件管理实验状态
+- **自动化评估**：定义主指标自动判断实验好坏，不依赖 LLM 主观判断
+- **Context Window 保护**：长输出重定向到文件，只提取关键信息
+- **弹性失败处理**：crash 不终止研究，git reset 回退继续
+- **Results.tsv 实验日志**：记录所有实验结果供分析
+- **两种模式共存**：Managed Mode（现有短实验）+ Autonomous Mode（新增长时间自主研究）
 
 #### 🔀 多分支真正并行执行
 - 使用 `multiprocessing.Pool` 实现真正的并行执行
 - 实时状态监控（emoji 图标显示各分支执行状态）
-- 结构化日志（基于 structlog 的 JSON/Console 日志输出）
-#### 📊 选题发现 (Spec 005)
-- 多源���题挖掘（arXiv、Papers with Code、GitHub Trending）
-- 候选课题评估与排序
-- 研究空白识别
+- 结构化日志（基�� structlog 的 JSON/Console 日志输出）
 
-#### 📝 论文写作 (Spec 006)
+#### 📝 论文写作 (Spec 007)
 - 自动生成论文初稿
 - 图表自动生成
 - 参考文献管理
@@ -126,6 +148,25 @@ cp .env.example .env
 ```
 
 ### 基础使用
+
+#### 0. 从想法生成研究项目（新功能 - Spec 005）
+
+```bash
+# 从自然语言想法生成完整研究项目
+python cli.py project generate "Improve Transformer inference speed using quantization"
+
+# 交互模式（会询问澄清问题）
+python cli.py project generate "Build a sentiment analysis model" --interactive
+
+# 查看所有生成的项目
+python cli.py project list
+
+# 查看项目详情
+python cli.py project show proj_xxxxx
+
+# 删除项目
+python cli.py project delete proj_xxxxx
+```
 
 #### 1. 生成实验方案
 
@@ -248,49 +289,66 @@ aisci/
 │   │   │   ├── loop.py         # 实验循环控制
 │   │   │   ├── tool_agent.py   # Tool-use Agent
 │   │   │   └── tool_dispatcher.py  # 工具调度器
-│   │   └── plan/               # 方案生成 Agent
-│   │       ├── plan_agent.py   # 方案生成
-│   │       └── revision_agent.py  # 方案修订
-│   ├── orchestrator/           # 多分支编排（新增）
+│   │   ├── plan/               # 方案生成 Agent
+│   │   │   ├── plan_agent.py   # 方案生成
+│   │   │   └── revision_agent.py  # 方案修订
+│   │   └── project_generator/  # Idea-to-Project Agent（新增）
+│   │       ├── intake_agent.py      # 想法解析
+│   │       ├── clarification_agent.py  # 交互澄清
+│   │       ├── evidence_searcher.py    # 证据搜索
+│   │       ├── knowledge_consolidator.py  # 知识整合
+│   │       ├── formalization_agent.py  # 规格形式化
+│   │       ├── proposal_generator.py   # 方案生成
+│   │       ├── readiness_checker.py    # 就绪验证
+│   │       └── cli_commands.py         # CLI 命令
+│   ├── orchestrator/           # 多分支编排
 │   │   ├── branch_orchestrator.py  # 分支编排器
 │   │   ├── branch_executor.py      # 分支执行器
 │   │   ├── variant_generator.py    # 变体生成器
 │   │   ├── workspace_manager.py    # 工作空间管理
 │   │   ├── logger.py               # 结构化日志
 │   │   └── status_monitor.py       # 状态监控
-│   ├── memory/                 # 实验记忆（新增）
+│   ├── memory/                 # 实验记忆
 │   │   ├── experiment_memory.py    # 实验记忆存储
 │   │   ├── similarity_search.py    # 语义搜索
 │   │   ├── embedding_cache.py      # 嵌入缓存
 │   │   └── memory_aggregator.py    # 跨分支聚合
-│   ├── scheduler/              # 预算调度（新增）
+│   ├── scheduler/              # 预算调度
 │   │   └── budget_scheduler.py     # 动态预算分配
 │   ├── llm/                    # LLM 客户端
 │   │   └── client.py           # LiteLLM 封装（重试+回退）
 │   ├── sandbox/                # 沙箱执行
 │   │   ├── base.py             # 抽象接口
 │   │   ├── subprocess_sandbox.py  # Subprocess 实现
-│   │   ├── docker_sandbox.py      # Docker 实现（新增）
-│   │   ├── docker_config.py       # Docker 配置（新增）
-│   │   ├── docker_cleanup.py      # 容器清理（新增）
-│   │   └── dependency_installer.py # 依赖安装（新增）
+│   │   ├── docker_sandbox.py      # Docker 实现
+│   │   ├── docker_config.py       # Docker 配置
+│   │   ├── docker_cleanup.py      # 容器清理
+│   │   └── dependency_installer.py # 依赖安装
 │   ├── knowledge/              # 知识库
 │   │   ├── store.py            # 知识存储
 │   │   └── searcher.py         # 多源检索
 │   ├── schemas/                # 数据模型（Pydantic）
+│   │   ├── research_spec.py    # 研究规格
+│   │   └── project_generator.py  # 项目生成器（新增）
 │   ├── service/                # 业务服务
 │   └── storage/                # 持久化存储
-├── tests/                      # 测试（300 个测试）
+├── tests/                      # 测试（489 个测试）
 │   ├── unit/                   # 单元测试
+│   │   └── test_project_generator/  # 项目生成器测试（新增）
 │   └── integration/            # 集成测试
-├── examples/                   # 示例代码（新增）
+│       └── test_project_generator_e2e.py  # E2E 测试（新增）
+├── examples/                   # 示例代码
 │   └── orchestrator_quickstart.py  # 多分支快速开始
 ├── configs/                    # 配置文件
+│   └── project_generator.yaml  # 项目生成器配置（新增）
 ├── docs/                       # 文档
 └── specs/                      # 功能规格
     ├── 001-research-copilot-mvp/
     ├── 002-plan-baseline-mvp/
-    └── 003-execution-upgrade-mvp/  # 新增
+    ├── 003-execution-upgrade-mvp/
+    ├── 004-ai-scientist-integration/
+    ├── 005-idea-to-project-generator/  # 新增
+    └── 006-autonomous-research-mode/   # 规划中
 ```
 
 ### 核心组件
@@ -386,9 +444,9 @@ python -m pytest tests/ --cov=src --cov-report=html
 ```
 
 **测试统计**：
-- 总测试数：304
-- 单元测试：226
-- 集成测试：78
+- 总测试数：489
+- 单元测试：232
+- 集成测试：81
 - 通过率：100%
 
 ---
@@ -422,10 +480,11 @@ python -m pytest tests/ --cov=src --cov-report=html
 - [x] 方案生成与知识库（Spec 002）
 - [x] 多分支串行执行（Spec 003）
 - [x] AI-Scientist 外部专家集成（Spec 004）
+- [x] Idea-to-Project 生成器（Spec 005）
 
-### Phase 2: 选题与论文 📋
-- [ ] 选题发现（Spec 005）
-- [ ] 论文写作（Spec 006）
+### Phase 2: 自主研究与论文 📋
+- [ ] 自主研究模式（Spec 006）
+- [ ] 论文写作（Spec 007）
 
 ### Phase 3: 高级功能 📋
 - [ ] 自动审稿
