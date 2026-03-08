@@ -55,6 +55,7 @@ class ResearchSpec(BaseModel):
     created_by: Literal["user", "agent"] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    evidence_metadata: dict | None = None  # Evidence from project generator
 
 
 class ExperimentPlan(BaseModel):

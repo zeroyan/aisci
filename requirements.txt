@@ -19,3 +19,8 @@ structlog>=24.0.0                # 结构化日志
 # Spec 004: AI-Scientist Integration dependencies
 watchdog>=3.0.0                  # 文件系统事件监听
 psutil>=5.9.0                    # 进程管理
+
+# Spec 005: Idea-to-Project Generator dependencies
+PyGithub>=2.1.0                  # GitHub API 客户端
+beautifulsoup4>=4.12.0           # HTML 解析（Papers with Code）
+requests>=2.31.0                 # HTTP 请求

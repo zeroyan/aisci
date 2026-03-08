@@ -30,6 +30,10 @@ plan_app = typer.Typer(help="Manage experiment plans")
 app.add_typer(run_app, name="run")
 app.add_typer(plan_app, name="plan")
 
+# Import and register project commands (Spec 005)
+from src.agents.project_generator.cli_commands import project_app
+app.add_typer(project_app, name="project")
+
 
 def _load_config(config_path: str | None = None) -> dict:
     """Load YAML config, falling back to default."""

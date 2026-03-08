@@ -31,11 +31,11 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 
 ### Tasks
 
-- [ ] T001 创建项目生成器模块目录 `src/agents/project_generator/`
-- [ ] T002 [P] 创建 Schema 文件 `src/schemas/project_generator.py`（IdeaRecord, EvidencePackage, etc.）
-- [ ] T003 [P] 更新 `requirements.txt` 添加新依赖（arxiv, semanticscholar, PyGithub, beautifulsoup4）
-- [ ] T004 [P] 配置外部 API 环境变量（GITHUB_TOKEN, ARXIV_API_KEY, SEMANTIC_SCHOLAR_API_KEY）
-- [ ] T005 [P] 创建配置文件 `configs/project_generator.yaml`
+- [X] T001 创建项目生成器模块目录 `src/agents/project_generator/`
+- [X] T002 [P] 创建 Schema 文件 `src/schemas/project_generator.py`（IdeaRecord, EvidencePackage, etc.）
+- [X] T003 [P] 更新 `requirements.txt` 添加新依赖（arxiv, semanticscholar, PyGithub, beautifulsoup4）
+- [X] T004 [P] 配置外部 API 环境变量（GITHUB_TOKEN, ARXIV_API_KEY, SEMANTIC_SCHOLAR_API_KEY）
+- [X] T005 [P] 创建配置文件 `configs/project_generator.yaml`
 
 **验证标准**:
 - ✅ 目录结构符合 plan.md 设计
@@ -50,17 +50,17 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 
 ### Tasks
 
-- [ ] T006 [P] 实现 IdeaRecord Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T007 [P] 实现 ClarificationQuestion Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T008 [P] 实现 EvidencePackage Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T009 [P] 实现 PaperResult Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T010 [P] 实现 CodeRepository Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T011 [P] 实现 BaselineMethod Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T012 [P] 实现 EvidenceReport Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T013 [P] 实现 ResearchProposal Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T014 [P] 实现 KnowledgeCache Pydantic 模型 in `src/schemas/project_generator.py`
-- [ ] T015 [P] 扩展 ResearchSpec 添加 evidence_metadata 字段 in `src/schemas/research_spec.py`
-- [ ] T016 [P] 扩展 ExperimentPlan 添加 baseline_guidance 字段 in `src/schemas/research_spec.py`
+- [X] T006 [P] 实现 IdeaRecord Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T007 [P] 实现 ClarificationQuestion Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T008 [P] 实现 EvidencePackage Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T009 [P] 实现 PaperResult Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T010 [P] 实现 CodeRepository Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T011 [P] 实现 BaselineMethod Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T012 [P] 实现 EvidenceReport Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T013 [P] 实现 ResearchProposal Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T014 [P] 实现 KnowledgeCache Pydantic 模型 in `src/schemas/project_generator.py`
+- [X] T015 [P] 扩展 ResearchSpec 添加 evidence_metadata 字段 in `src/schemas/research_spec.py`
+- [X] T016 [P] 扩展 ExperimentPlan 添加 baseline_guidance 字段 in `src/schemas/research_spec.py`
 
 **验证标准**:
 - ✅ 所有 Pydantic 模型通过验证测试
@@ -79,23 +79,23 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 ### Tasks
 
 #### Idea Intake
-- [ ] T017 [US1] 实现 IntakeAgent 基础类 in `src/agents/project_generator/intake_agent.py`
-- [ ] T018 [US1] 实现想法解析逻辑（提取 task, model, dataset, metric）
-- [ ] T019 [US1] 实现想法类型分类（performance_improvement/new_method/problem_solving/constraint_driven）
-- [ ] T020 [US1] 实现缺失信息检测（objective, metric, baseline, dataset, constraints）
+- [X] T017 [US1] 实现 IntakeAgent 基础类 in `src/agents/project_generator/intake_agent.py`
+- [X] T018 [US1] 实现想法解析逻辑（提取 task, model, dataset, metric）
+- [X] T019 [US1] 实现想法类型分类（performance_improvement/new_method/problem_solving/constraint_driven）
+- [X] T020 [US1] 实现缺失信息检测（objective, metric, baseline, dataset, constraints）
 
 #### Formalization
-- [ ] T021 [US1] 实现 FormalizationAgent 基础类 in `src/agents/project_generator/formalization_agent.py`
-- [ ] T022 [US1] 实现 ResearchSpec 生成逻辑（从 IdeaRecord + EvidencePackage）
-- [ ] T023 [US1] 实现 ExperimentPlan 生成逻辑（从 ResearchSpec + baseline guidance）
-- [ ] T024 [US1] 实现默认约束设置（budget: $100, time: 24h, iterations: 10）
+- [X] T021 [US1] 实现 FormalizationAgent 基础类 in `src/agents/project_generator/formalization_agent.py`
+- [X] T022 [US1] 实现 ResearchSpec 生成逻辑（从 IdeaRecord + EvidencePackage）
+- [X] T023 [US1] 实现 ExperimentPlan 生成逻辑（从 ResearchSpec + baseline guidance）
+- [X] T024 [US1] 实现默认约束设置（budget: $100, time: 24h, iterations: 10）
 
 #### CLI Integration
-- [ ] T025 [US1] 在 `cli.py` 添加 `project` 命令组
-- [ ] T026 [US1] 实现 `project generate` 命令（基础版本，无交互）
-- [ ] T027 [US1] 实现项目 ID 生成逻辑（proj_<timestamp>_<hash>）
-- [ ] T028 [US1] 实现输出目录创建（runs/<proj_id>/spec/, plan/, knowledge/）
-- [ ] T029 [US1] 实现文件写入逻辑（research_spec.json, experiment_plan.json）
+- [X] T025 [US1] 在 `cli.py` 添加 `project` 命令组
+- [X] T026 [US1] 实现 `project generate` 命令（基础版本，无交互）
+- [X] T027 [US1] 实现项目 ID 生成逻辑（proj_<timestamp>_<hash>）
+- [X] T028 [US1] 实现输出目录创建（runs/<proj_id>/spec/, plan/, knowledge/）
+- [X] T029 [US1] 实现文件写入逻辑（research_spec.json, experiment_plan.json）
 
 **Acceptance Criteria**:
 - ✅ 用户提供想法，系统生成 ResearchSpec
@@ -115,26 +115,26 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 ### Tasks
 
 #### Evidence Searcher
-- [ ] T030 [US2] 实现 EvidenceSearcher 基础类 in `src/agents/project_generator/evidence_searcher.py`
-- [ ] T031 [US2] 实现 arXiv 搜索逻辑（使用 arxiv Python 客户端）
-- [ ] T032 [US2] 实现 Semantic Scholar 搜索逻辑（使用 semanticscholar 客户端）
-- [ ] T033 [US2] 实现 GitHub 搜索逻辑（使用 PyGithub）
+- [X] T030 [US2] 实现 EvidenceSearcher 基础类 in `src/agents/project_generator/evidence_searcher.py`
+- [X] T031 [US2] 实现 arXiv 搜索逻辑（使用 arxiv Python 客户端）
+- [X] T032 [US2] 实现 Semantic Scholar 搜索逻辑（使用 semanticscholar 客户端）
+- [X] T033 [US2] 实现 GitHub 搜索逻辑（使用 PyGithub）
 - [ ] T034 [US2] 实现 Papers with Code 爬虫（使用 BeautifulSoup）
-- [ ] T035 [US2] 实现搜索结果排序（relevance × citations × recency）
-- [ ] T036 [US2] 实现搜索结果去重（跨源去重）
-- [ ] T037 [US2] 实现 baseline 方法提取（从论文摘要和代码 README）
+- [X] T035 [US2] 实现搜索结果排序（relevance × citations × recency）
+- [X] T036 [US2] 实现搜索结果去重（跨源去重）
+- [X] T037 [US2] 实现 baseline 方法提取（从论文摘要和代码 README）
 - [ ] T038 [US2] 实现失败模式识别（从论文 limitations 部分）
 
 #### Evidence Report Generation
-- [ ] T039 [US2] 实现证据报告生成器 in `src/agents/project_generator/evidence_searcher.py`
-- [ ] T040 [US2] 实现 Markdown 格式报告生成（包含论文列表、代码仓库、baseline 推荐）
-- [ ] T041 [US2] 实现引用列表生成（APA 格式）
-- [ ] T042 [US2] 实现风险评估部分（基于 common failures）
+- [X] T039 [US2] 实现证据报告生成器 in `src/agents/project_generator/knowledge_consolidator.py`
+- [X] T040 [US2] 实现 Markdown 格式报告生成（包含论文列表、代码仓库、baseline 推荐）
+- [X] T041 [US2] 实现引用列表生成（APA 格式）
+- [X] T042 [US2] 实现风险评估部分（基于 common failures）
 
 #### Integration
-- [ ] T043 [US2] 集成 EvidenceSearcher 到 FormalizationAgent
-- [ ] T044 [US2] 更新 `project generate` 命令添加证据搜索步骤
-- [ ] T045 [US2] 实现证据报告写入（runs/<proj_id>/knowledge/evidence_report.md）
+- [X] T043 [US2] 集成 EvidenceSearcher 到 FormalizationAgent
+- [X] T044 [US2] 更新 `project generate` 命令添加证据搜索步骤
+- [X] T045 [US2] 实现证据报告写入（runs/<proj_id>/knowledge/evidence_report.md）
 
 **Acceptance Criteria**:
 - ✅ 搜索返回至少 5 篇论文和 3 个代码仓库
@@ -154,24 +154,24 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 ### Tasks
 
 #### Clarification Agent
-- [ ] T046 [US3] 实现 ClarificationAgent 基础类 in `src/agents/project_generator/clarification_agent.py`
-- [ ] T047 [US3] 实现问题生成逻辑（基于 missing_info 字段）
-- [ ] T048 [US3] 实现问题优先级排序（objective > metric > baseline > dataset > constraints）
-- [ ] T049 [US3] 实现多选题选项生成（使用 LLM 生成 3-5 个选项）
-- [ ] T050 [US3] 实现默认答案设置（基于常见场景）
-- [ ] T051 [US3] 实现问题数量限制（最多 5 个问题）
+- [X] T046 [US3] 实现 ClarificationAgent 基础类 in `src/agents/project_generator/clarification_agent.py`
+- [X] T047 [US3] 实现问题生成逻辑（基于 missing_info 字段）
+- [X] T048 [US3] 实现问题优先级排序（objective > metric > baseline > dataset > constraints）
+- [X] T049 [US3] 实现多选题选项生成（使用 LLM 生成 3-5 个选项）
+- [X] T050 [US3] 实现默认答案设置（基于常见场景）
+- [X] T051 [US3] 实现问题数量限制（最多 5 个问题）
 
 #### Interactive CLI
-- [ ] T052 [US3] 实现交互式问答界面 in `cli.py`（使用 typer.prompt）
-- [ ] T053 [US3] 实现多选题显示（带编号选项）
-- [ ] T054 [US3] 实现跳过选项（用户可以选择使用默认值）
-- [ ] T055 [US3] 实现答案验证（确保答案有效）
-- [ ] T056 [US3] 实现答案整合（更新 IdeaRecord）
+- [X] T052 [US3] 实现交互式问答界面 in `cli.py`（使用 typer.prompt）
+- [X] T053 [US3] 实现多选题显示（带编号选项）
+- [X] T054 [US3] 实现跳过选项（用户可以选择使用默认值）
+- [X] T055 [US3] 实现答案验证（确保答案有效）
+- [X] T056 [US3] 实现答案整合（更新 IdeaRecord）
 
 #### Integration
-- [ ] T057 [US3] 集成 ClarificationAgent 到 `project generate` 流程
-- [ ] T058 [US3] 实现 `--interactive` / `--no-interactive` 标志
-- [ ] T059 [US3] 实现 `--max-questions` 选项
+- [X] T057 [US3] 集成 ClarificationAgent 到 `project generate` 流程
+- [X] T058 [US3] 实现 `--interactive` / `--no-interactive` 标志
+- [X] T059 [US3] 实现 `--max-questions` 选项
 - [ ] T060 [US3] 保存用户答案到 `runs/<proj_id>/knowledge/clarifications.json`
 
 **Acceptance Criteria**:
@@ -192,23 +192,23 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 ### Tasks
 
 #### Knowledge Consolidator
-- [ ] T061 [US4] 实现 KnowledgeConsolidator 基础类 in `src/agents/project_generator/knowledge_consolidator.py`
-- [ ] T062 [US4] 实现缓存键生成（normalize topic string）
-- [ ] T063 [US4] 实现缓存保存逻辑（scientist/<topic>/papers.json, code.json, metadata.json）
-- [ ] T064 [US4] 实现缓存加载逻辑（检查 timestamp，判断是否过期）
-- [ ] T065 [US4] 实现缓存过期检查（30 天 TTL）
-- [ ] T066 [US4] 实现缓存命中计数（hit_count 字段）
+- [X] T061 [US4] 实现 KnowledgeConsolidator 基础类 in `src/agents/project_generator/knowledge_consolidator.py`
+- [X] T062 [US4] 实现缓存键生成（normalize topic string）
+- [X] T063 [US4] 实现缓存保存逻辑（scientist/<topic>/papers.json, code.json, metadata.json）
+- [X] T064 [US4] 实现缓存加载逻辑（检查 timestamp，判断是否过期）
+- [X] T065 [US4] 实现缓存过期检查（30 天 TTL）
+- [X] T066 [US4] 实现缓存命中计数（hit_count 字段）
 
 #### Cache Management CLI
-- [ ] T067 [US4] 实现 `project cache list` 命令（显示所有缓存主题）
-- [ ] T068 [US4] 实现 `project cache stats` 命令（显示缓存统计）
-- [ ] T069 [US4] 实现 `project cache clear` 命令（清除指定主题或全部）
+- [X] T067 [US4] 实现 `project cache list` 命令（显示所有缓存主题）
+- [X] T068 [US4] 实现 `project cache stats` 命令（显示缓存统计）
+- [X] T069 [US4] 实现 `project cache clear` 命令（清除指定主题或全部）
 - [ ] T070 [US4] 实现 `project cache refresh` 命令（强制刷新缓存）
 
 #### Integration
-- [ ] T071 [US4] 集成 KnowledgeConsolidator 到 EvidenceSearcher
-- [ ] T072 [US4] 实现缓存优先策略（先查缓存，未命中再调用 API）
-- [ ] T073 [US4] 实现 `--skip-search` 标志（仅使用缓存）
+- [X] T071 [US4] 集成 KnowledgeConsolidator 到 EvidenceSearcher
+- [X] T072 [US4] 实现缓存优先策略（先查缓存，未命中再调用 API）
+- [X] T073 [US4] 实现 `--skip-search` 标志（仅使用缓存）
 - [ ] T074 [US4] 实现 `--force-refresh` 标志（强制刷新缓存）
 
 **Acceptance Criteria**:
@@ -229,24 +229,24 @@ MVP 完成后可以进行端到端测试，验证核心功能。
 ### Tasks
 
 #### Proposal Generator
-- [ ] T075 [US5] 实现 ProposalGenerator 基础类 in `src/agents/project_generator/proposal_generator.py`
-- [ ] T076 [US5] 实现保守方案生成（复现 baseline + 小改进）
-- [ ] T077 [US5] 实现平衡方案生成（结合多个方法）
-- [ ] T078 [US5] 实现激进方案生成（探索新方向）
-- [ ] T079 [US5] 实现风险标签生成（risk_profile 字段）
-- [ ] T080 [US5] 实现预期指标估算（expected_metrics 字段）
-- [ ] T081 [US5] 实现成本和时间估算（estimated_cost, estimated_time）
+- [X] T075 [US5] 实现 ProposalGenerator 基础类 in `src/agents/project_generator/proposal_generator.py`
+- [X] T076 [US5] 实现保守方案生成（复现 baseline + 小改进）
+- [X] T077 [US5] 实现平衡方案生成（结合多个方法）
+- [X] T078 [US5] 实现激进方案生成（探索新方向）
+- [X] T079 [US5] 实现风险标签生成（risk_profile 字段）
+- [X] T080 [US5] 实现预期指标估算（expected_metrics 字段）
+- [X] T081 [US5] 实现成本和时间估算（estimated_cost, estimated_time）
 
 #### Proposal Selection CLI
-- [ ] T082 [US5] 实现方案展示界面（显示 3 个方案的对比）
-- [ ] T083 [US5] 实现方案选择逻辑（用户输入 1/2/3）
-- [ ] T084 [US5] 实现 `--num-proposals` 选项（1-5 个方案）
+- [X] T082 [US5] 实现方案展示界面（显示 3 个方案的对比）
+- [X] T083 [US5] 实现方案选择逻辑（用户输入 1/2/3）
+- [X] T084 [US5] 实现 `--num-proposals` 选项（1-5 个方案）
 - [ ] T085 [US5] 实现 `--auto-select` 选项（conservative/balanced/aggressive）
-- [ ] T086 [US5] 保存所有方案到 `runs/<proj_id>/proposals.json`
+- [X] T086 [US5] 保存所有方案到 `runs/<proj_id>/proposals.json`
 
 #### Integration
-- [ ] T087 [US5] 集成 ProposalGenerator 到 `project generate` 流程
-- [ ] T088 [US5] 更新 FormalizationAgent 使用选中的方案
+- [X] T087 [US5] 集成 ProposalGenerator 到 `project generate` 流程
+- [X] T088 [US5] 更新 FormalizationAgent 使用选中的方案
 
 **Acceptance Criteria**:
 - ✅ 生成 3 个不同的 ResearchSpec
